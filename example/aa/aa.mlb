@@ -1,0 +1,6 @@
+../../src/nipo.mlb
+
+ann "allowSuccessorML true" in
+    aa.sml
+end
+
