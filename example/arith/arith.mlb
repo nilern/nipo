@@ -1,0 +1,7 @@
+$(SML_LIB)/basis/basis.mlb
+../../src/nipo.mlb
+
+ann "allowSuccessorML true" in
+    arith.sml
+end
+

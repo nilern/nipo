@@ -1,0 +1,6 @@
+ann "allowSuccessorML true" in
+    ann "warnUnused true" in
+        nipo.sml
+    end
+end
+
