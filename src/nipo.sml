@@ -107,8 +107,31 @@ end = struct
              | Epsilon => "<epsilon>"
     end
 
+    structure Lookahead = struct
+        type t = Token.t option
+
+        val compare =
+            fn (SOME token, SOME token') => Token.compare (token, token')
+             | (SOME _, NONE) => GREATER
+             | (NONE, SOME _) => LESS
+             | (NONE, NONE) => EQUAL
+            
+        val toString =
+            fn SOME token => Token.toString token
+             | NONE => "<EOF>"
+    end
+
     structure Grammar = BinaryMapFn(type ord_key = string val compare = String.compare)
     structure FirstSet = NipoTokenSet(NullableToken)
+    structure FollowSet = struct
+        structure Super = NipoTokenSet(Lookahead)
+        open Super
+
+        val fromFirstSet =
+            FirstSet.foldl (fn (NullableToken.Token token, followSet) => add (followSet, SOME token)
+                             | (NullableToken.Epsilon, followSet) => followSet)
+                           empty
+    end
  
     exception Changed
 
@@ -145,6 +168,55 @@ end = struct
         in iterate (Grammar.mapi (fn _ => FirstSet.empty) grammar)
         end
 
+    fun followSets grammar startName fiSets =
+        let fun changed sets sets' =
+                ( Grammar.appi (fn (name, set') =>
+                                    let val set = Grammar.lookup (sets, name)
+                                    in if FollowSet.isSubset (set', set)
+                                       then ()
+                                       else raise Changed
+                                    end)
+                               sets'
+                ; false )
+                handle Changed => true
+
+            fun ruleIteration (name, rule, sets) =
+                let fun update followSet rule sets' =
+                        case rule
+                        of Terminal _ => sets'
+                         | NonTerminal name' =>
+                            let val prev = Grammar.lookup (sets, name')
+                            in Grammar.insert (sets', name', FollowSet.union (prev, followSet))
+                            end
+                         | Seq (l, r) =>
+                            let val sets' = update followSet r sets'
+                                val rFirsts = firstSet fiSets r
+                                val lFollow = if FirstSet.member (rFirsts, NullableToken.Epsilon)
+                                              then FollowSet.union ( FollowSet.fromFirstSet rFirsts
+                                                                   , followSet )
+                                              else FollowSet.fromFirstSet rFirsts
+                            in update lFollow l sets'
+                            end
+                         | Alt (l, r) =>
+                            let val sets' = update followSet l sets'
+                            in update followSet r sets'
+                            end
+                in update (Grammar.lookup (sets, name)) rule sets
+                end
+
+            fun iterate sets =
+                let val sets' = Grammar.foldli ruleIteration sets grammar
+                in if changed sets sets'
+                   then iterate sets'
+                   else sets'
+                end
+        in iterate (Grammar.mapi (fn (name, _) =>
+                                      if name = startName
+                                      then FollowSet.singleton NONE
+                                      else FollowSet.empty)
+                                grammar)
+        end
+
     type parser = Input.stream -> unit
 
     fun tokenParser name token input =
@@ -169,7 +241,7 @@ end = struct
             val qfirsts = firstSet sets q (* OPTIMIZE *)
             do if FirstSet.isEmpty (FirstSet.intersection (pfirsts, qfirsts))
                then ()
-               else raise Fail ( "Conflict: " ^ FirstSet.toString pfirsts
+               else raise Fail ( "FIRST/FIRST conflict: " ^ FirstSet.toString pfirsts
                                ^ " intersects with " ^ FirstSet.toString qfirsts
                                ^ " in " ^ name )
             val firsts = FirstSet.union (pfirsts, qfirsts)
@@ -197,16 +269,17 @@ end = struct
          | Seq (p, q) => seqParser sets parsers name p q
          | Alt (p, q) => altParser sets parsers name p q
 
-    fun parser grammar =
+    fun parser grammar startName =
         let val grammar = List.foldl Grammar.insert' Grammar.empty grammar
             val fiSets = firstSets grammar
+            val foSets = followSets grammar startName fiSets
             val parsers = Grammar.map (fn _ => ref NONE) grammar
             do Grammar.appi (fn (name, rule) =>
                                  let val parser = ruleParser fiSets parsers name rule
                                  in Grammar.lookup (parsers, name) := SOME parser
                                  end)
                             grammar
-        in fn startName => valOf (!(Grammar.lookup (parsers, startName)))
+        in valOf (!(Grammar.lookup (parsers, startName)))
         end
 end
 
