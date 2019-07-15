@@ -144,18 +144,18 @@ end = struct
  
     exception Changed
 
-    fun firstSet sets =
+    fun firstSet fiSets =
         fn Terminal token => FirstSet.singleton (NullableToken.Token token)
-         | NonTerminal name => Grammar.lookup (sets, name)
+         | NonTerminal name => Grammar.lookup (fiSets, name)
          | Empty => FirstSet.singleton NullableToken.Epsilon
          | Seq (l, r) =>
-            let val lfirsts = firstSet sets l
+            let val lfirsts = firstSet fiSets l
             in if FirstSet.member (lfirsts, NullableToken.Epsilon)
                then FirstSet.union ( FirstSet.delete (lfirsts, NullableToken.Epsilon)
-                                   , firstSet sets r )
+                                   , firstSet fiSets r )
                else lfirsts
             end
-         | Alt (l, r) => FirstSet.union (firstSet sets l, firstSet sets r)
+         | Alt (l, r) => FirstSet.union (firstSet fiSets l, firstSet fiSets r)
 
     fun firstSets (grammar: rule Grammar.map) =
         let fun changed sets sets' =
@@ -236,20 +236,20 @@ end = struct
                             ^ ", got " ^ Token.toString token' ^ " in " ^ name )
          | NONE => raise Fail ("EOF reached while expecting " ^ Token.toString token ^ " in " ^ name)
 
-    fun ruleParser sets parsers name rule: parser =
+    fun ruleParser fiSets foSets parsers name rule: parser =
         let fun ntParser parser input = valOf (!parser) input
 
             fun emptyParser _ = ()
 
-            fun seqParser name p q =
-                let val p = parser name p
-                    val q = parser name q
+            fun seqParser followSet name p q =
+                let val p = parser (predictionSet qfirsts followSet) name p
+                    val q = parser followSet name q
                 in fn input => (p input; q input)
                 end
 
-            and altParser name p q =
-                let val pfirsts = firstSet sets p (* OPTIMIZE *)
-                    val qfirsts = firstSet sets q (* OPTIMIZE *)
+            and altParser followSet name p q =
+                let val pfirsts = firstSet fiSets p (* OPTIMIZE *)
+                    val qfirsts = firstSet fiSets q (* OPTIMIZE *)
                     do if FirstSet.isEmpty (FirstSet.intersection (pfirsts, qfirsts))
                        then ()
                        else raise Fail ( "FIRST/FIRST conflict: " ^ FirstSet.toString pfirsts
@@ -257,8 +257,8 @@ end = struct
                                        ^ " in " ^ name )
                     val firsts = FirstSet.union (pfirsts, qfirsts)
 
-                    val p = parser name p
-                    val q = parser name q
+                    val p = parser followSet name p
+                    val q = parser followSet name q
                 in fn input =>
                        case Input.peek input
                        of SOME token =>
@@ -273,13 +273,13 @@ end = struct
                                       ^ FirstSet.toString firsts ^ " in " ^ name )
                 end
 
-            and parser name =
+            and parser followSet name =
                 fn Terminal token => tokenParser name token
                  | NonTerminal name => ntParser (Grammar.lookup (parsers, name))
                  | Empty => emptyParser
-                 | Seq (p, q) => seqParser name p q
-                 | Alt (p, q) => altParser name p q
-        in parser name rule
+                 | Seq (p, q) => seqParser followSet name p q
+                 | Alt (p, q) => altParser followSet name p q
+        in parser (Grammar.lookup (foSets, name)) name rule
         end
 
     fun parser grammar startName =
@@ -288,7 +288,7 @@ end = struct
             val foSets = followSets grammar startName fiSets
             val parsers = Grammar.map (fn _ => ref NONE) grammar
             do Grammar.appi (fn (name, rule) =>
-                                 let val parser = ruleParser fiSets parsers name rule
+                                 let val parser = ruleParser fiSets foSets parsers name rule
                                  in Grammar.lookup (parsers, name) := SOME parser
                                  end)
                             grammar
