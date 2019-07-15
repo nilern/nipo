@@ -74,6 +74,7 @@ functor NipoParsers(Input: NIPO_INPUT) :> sig
 
     val rule: string -> rule
     val token: Input.token -> rule
+    val empty: rule
     val <|> : rule * rule -> rule
     val <*> : rule * rule -> rule
 
@@ -84,11 +85,13 @@ end = struct
     datatype rule
         = Terminal of Input.token
         | NonTerminal of string
+        | Empty
         | Seq of rule * rule
         | Alt of rule * rule
 
     val rule = NonTerminal
     val token = Terminal
+    val empty = Empty
     val op<*> = Seq
     val op<|> = Alt
 
@@ -132,12 +135,19 @@ end = struct
                              | (NullableToken.Epsilon, followSet) => followSet)
                            empty
     end
+
+    fun predictionSet firstSet followSet =
+        if FirstSet.member (firstSet, NullableToken.Epsilon)
+        then FollowSet.union ( FollowSet.fromFirstSet firstSet
+                             , followSet )
+        else FollowSet.fromFirstSet firstSet
  
     exception Changed
 
     fun firstSet sets =
         fn Terminal token => FirstSet.singleton (NullableToken.Token token)
          | NonTerminal name => Grammar.lookup (sets, name)
+         | Empty => FirstSet.singleton NullableToken.Epsilon
          | Seq (l, r) =>
             let val lfirsts = firstSet sets l
             in if FirstSet.member (lfirsts, NullableToken.Epsilon)
@@ -188,13 +198,11 @@ end = struct
                             let val prev = Grammar.lookup (sets, name')
                             in Grammar.insert (sets', name', FollowSet.union (prev, followSet))
                             end
+                         | Empty => sets'
                          | Seq (l, r) =>
                             let val sets' = update followSet r sets'
                                 val rFirsts = firstSet fiSets r
-                                val lFollow = if FirstSet.member (rFirsts, NullableToken.Epsilon)
-                                              then FollowSet.union ( FollowSet.fromFirstSet rFirsts
-                                                                   , followSet )
-                                              else FollowSet.fromFirstSet rFirsts
+                                val lFollow = predictionSet rFirsts followSet
                             in update lFollow l sets'
                             end
                          | Alt (l, r) =>
@@ -229,6 +237,8 @@ end = struct
          | NONE => raise Fail ("EOF reached while expecting " ^ Token.toString token ^ " in " ^ name)
 
     fun ntParser parser input = valOf (!parser) input
+
+    fun emptyParser _ = ()
 
     fun seqParser sets parsers name p q =
         let val p = ruleParser sets parsers name p
@@ -266,6 +276,7 @@ end = struct
         case rule
         of Terminal token => tokenParser name token
          | NonTerminal name => ntParser (Grammar.lookup (parsers, name))
+         | Empty => emptyParser
          | Seq (p, q) => seqParser sets parsers name p q
          | Alt (p, q) => altParser sets parsers name p q
 
