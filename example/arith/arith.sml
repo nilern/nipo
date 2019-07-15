@@ -5,12 +5,13 @@ val t = Parsers.token
 val op<*> = Parsers.<*>
 val op<|> = Parsers.<|>
 
-(* TODO: Left recursion elimination. *)
 val grammar =
-    [ ("expr", n "expr" <*> t #"+" <*> n "term"
-           <|> n "term")
-    , ("term", n "term" <*> t #"*" <*> n "factor"
-           <|> n "factor")
+    [ ("expr", n "term" <*> n "terms")
+    , ("terms", t #"+" <*> n "term" <*> n "terms"
+            <|> Parsers.empty)
+    , ("term", n "factor" <*> n "factors")
+    , ("factors", t #"*" <*> n "factor" <*> n "factors"
+              <|> Parsers.empty)
     , ("factor", t #"(" <*> n "expr" <*> t #")"
              <|> n "digit")
     , ("digit", t #"0" <|> t #"1" <|> t #"2"
