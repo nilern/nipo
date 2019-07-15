@@ -65,8 +65,6 @@ end
 infixr 3 <|>
 infixr 4 <*>
 
-(* TODO: Empty rules *)
-(* TODO: Fail if start rule does not parse entire input. *)
 (* TODO: External DSL *)
 (* TODO: Emit code instead of composing closures. *)
 functor NipoParsers(Input: NIPO_INPUT) :> sig
@@ -242,7 +240,7 @@ end = struct
             fun emptyParser _ = ()
 
             fun seqParser followSet name p q =
-                let val p = parser (predictionSet qfirsts followSet) name p
+                let val p = parser (predictionSet (firstSet fiSets q) followSet) name p
                     val q = parser followSet name q
                 in fn input => (p input; q input)
                 end
@@ -250,27 +248,26 @@ end = struct
             and altParser followSet name p q =
                 let val pfirsts = firstSet fiSets p (* OPTIMIZE *)
                     val qfirsts = firstSet fiSets q (* OPTIMIZE *)
-                    do if FirstSet.isEmpty (FirstSet.intersection (pfirsts, qfirsts))
+                    val pPrediction = predictionSet pfirsts followSet
+                    val qPrediction = predictionSet qfirsts followSet
+                    do if FollowSet.isEmpty (FollowSet.intersection (pPrediction, qPrediction))
                        then ()
-                       else raise Fail ( "FIRST/FIRST conflict: " ^ FirstSet.toString pfirsts
-                                       ^ " intersects with " ^ FirstSet.toString qfirsts
+                       else raise Fail ( "Conflict: " ^ FollowSet.toString pPrediction
+                                       ^ " intersects with " ^ FollowSet.toString qPrediction
                                        ^ " in " ^ name )
-                    val firsts = FirstSet.union (pfirsts, qfirsts)
+                    val prediction = FollowSet.union (pPrediction, qPrediction)
 
                     val p = parser followSet name p
                     val q = parser followSet name q
                 in fn input =>
-                       case Input.peek input
-                       of SOME token =>
-                           if FirstSet.member (pfirsts, NullableToken.Token token)
+                       let val token = Input.peek input
+                       in  if FollowSet.member (pPrediction, token)
                            then p input
-                           else if FirstSet.member (qfirsts, NullableToken.Token token)
+                           else if FollowSet.member (qPrediction, token)
                                 then q input
-                                else raise Fail ( "expected one of " ^ FirstSet.toString firsts
-                                                ^ ", got " ^ Token.toString token )
-                        | NONE =>
-                           raise Fail ( "EOF reached while expecting one of "
-                                      ^ FirstSet.toString firsts ^ " in " ^ name )
+                                else raise Fail ( "expected one of " ^ FollowSet.toString prediction
+                                                ^ ", got " ^ Lookahead.toString token )
+                       end
                 end
 
             and parser followSet name =
