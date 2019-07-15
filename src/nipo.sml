@@ -236,49 +236,51 @@ end = struct
                             ^ ", got " ^ Token.toString token' ^ " in " ^ name )
          | NONE => raise Fail ("EOF reached while expecting " ^ Token.toString token ^ " in " ^ name)
 
-    fun ntParser parser input = valOf (!parser) input
+    fun ruleParser sets parsers name rule: parser =
+        let fun ntParser parser input = valOf (!parser) input
 
-    fun emptyParser _ = ()
+            fun emptyParser _ = ()
 
-    fun seqParser sets parsers name p q =
-        let val p = ruleParser sets parsers name p
-            val q = ruleParser sets parsers name q
-        in fn input => (p input; q input)
+            fun seqParser name p q =
+                let val p = parser name p
+                    val q = parser name q
+                in fn input => (p input; q input)
+                end
+
+            and altParser name p q =
+                let val pfirsts = firstSet sets p (* OPTIMIZE *)
+                    val qfirsts = firstSet sets q (* OPTIMIZE *)
+                    do if FirstSet.isEmpty (FirstSet.intersection (pfirsts, qfirsts))
+                       then ()
+                       else raise Fail ( "FIRST/FIRST conflict: " ^ FirstSet.toString pfirsts
+                                       ^ " intersects with " ^ FirstSet.toString qfirsts
+                                       ^ " in " ^ name )
+                    val firsts = FirstSet.union (pfirsts, qfirsts)
+
+                    val p = parser name p
+                    val q = parser name q
+                in fn input =>
+                       case Input.peek input
+                       of SOME token =>
+                           if FirstSet.member (pfirsts, NullableToken.Token token)
+                           then p input
+                           else if FirstSet.member (qfirsts, NullableToken.Token token)
+                                then q input
+                                else raise Fail ( "expected one of " ^ FirstSet.toString firsts
+                                                ^ ", got " ^ Token.toString token )
+                        | NONE =>
+                           raise Fail ( "EOF reached while expecting one of "
+                                      ^ FirstSet.toString firsts ^ " in " ^ name )
+                end
+
+            and parser name =
+                fn Terminal token => tokenParser name token
+                 | NonTerminal name => ntParser (Grammar.lookup (parsers, name))
+                 | Empty => emptyParser
+                 | Seq (p, q) => seqParser name p q
+                 | Alt (p, q) => altParser name p q
+        in parser name rule
         end
-
-    and altParser sets parsers name p q =
-        let val pfirsts = firstSet sets p (* OPTIMIZE *)
-            val qfirsts = firstSet sets q (* OPTIMIZE *)
-            do if FirstSet.isEmpty (FirstSet.intersection (pfirsts, qfirsts))
-               then ()
-               else raise Fail ( "FIRST/FIRST conflict: " ^ FirstSet.toString pfirsts
-                               ^ " intersects with " ^ FirstSet.toString qfirsts
-                               ^ " in " ^ name )
-            val firsts = FirstSet.union (pfirsts, qfirsts)
-
-            val p = ruleParser sets parsers name p
-            val q = ruleParser sets parsers name q
-        in fn input =>
-               case Input.peek input
-               of SOME token =>
-                   if FirstSet.member (pfirsts, NullableToken.Token token)
-                   then p input
-                   else if FirstSet.member (qfirsts, NullableToken.Token token)
-                        then q input
-                        else raise Fail ( "expected one of " ^ FirstSet.toString firsts
-                                        ^ ", got " ^ Token.toString token )
-                | NONE =>
-                   raise Fail ( "EOF reached while expecting one of "
-                              ^ FirstSet.toString firsts ^ " in " ^ name )
-        end
-
-    and ruleParser sets parsers name rule: parser =
-        case rule
-        of Terminal token => tokenParser name token
-         | NonTerminal name => ntParser (Grammar.lookup (parsers, name))
-         | Empty => emptyParser
-         | Seq (p, q) => seqParser sets parsers name p q
-         | Alt (p, q) => altParser sets parsers name p q
 
     fun parser grammar startName =
         let val grammar = List.foldl Grammar.insert' Grammar.empty grammar
