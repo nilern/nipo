@@ -18,5 +18,7 @@ val grammar =
 
 val parse = Parsers.parser grammar "expr"
 
+val _ = print (Parsers.parserCode grammar "expr" ^ "\n")
+
 val _ = parse (ref (VectorSlice.full "(1+2)*3"))
 

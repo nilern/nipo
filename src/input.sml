@@ -27,7 +27,7 @@ structure NipoStringInput :> NIPO_INPUT
         
         val compare = Char.compare
 
-        fun toString c = "'" ^ Char.toString c ^ "'"
+        fun toString c = Char.toString c
     end
 
     fun peek (ref cs) =

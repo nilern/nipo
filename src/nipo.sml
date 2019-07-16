@@ -29,11 +29,13 @@ infixr 4 <*>
 (* TODO: LL(1) -> PLL(1) *)
 functor NipoParsers(Input: NIPO_INPUT) :> sig
     type atom
+    type input_grammar = (string * atom list list) list
 
     val rule: string -> atom
     val token: Input.token -> atom
 
-    val parser: (string * atom list list) list -> string -> (Input.stream -> unit)
+    val parser: input_grammar -> string -> (Input.stream -> unit)
+    val parserCode: input_grammar -> string -> string
 end = struct
     structure Token = Input.Token
 
@@ -87,6 +89,8 @@ end = struct
 
     val rule = NonTerminal
     val token = Terminal o SOME
+
+    type input_grammar = (string * atom list list) list
 
     type 'laset branch = {lookaheads: 'laset, productees: atom list list}
 
@@ -195,6 +199,35 @@ end = struct
         in iterate (StringMap.mapi (fn _ => FollowSet.empty) grammar)
         end
 
+    fun analyze grammar startName =
+        let val internalStartName = "start$" ^ startName
+            val grammar =
+                List.foldl (fn ((name, productees), grammar) =>
+                                let val grammar =
+                                        StringMap.insert ( grammar, name
+                                                         , List.map (fn productee => 
+                                                                      { lookaheads = ()
+                                                                      , productees = [productee] })
+                                                                    productees )
+                                in if name = startName
+                                   then StringMap.insert ( grammar, internalStartName
+                                                         , [{lookaheads = (), productees = [[NonTerminal name, Terminal NONE]]}] )
+                                   else grammar
+                                end)
+                           StringMap.empty grammar
+            val (grammar, fiSets) = firstSets grammar
+            val foSets = followSets grammar fiSets
+            val grammar = StringMap.mapi (fn (name, branches) =>
+                                              let val followSet = StringMap.lookup (foSets, name)
+                                              in List.map (fn {lookaheads, productees} =>
+                                                               { lookaheads = predictionSet lookaheads followSet
+                                                               , productees })
+                                                          branches
+                                              end)
+                                         grammar
+        in (grammar, internalStartName, fiSets)
+        end
+
     type parser = Input.stream -> unit
 
     fun tokenParser name token input =
@@ -256,31 +289,7 @@ end = struct
         end
 
     fun parser grammar startName =
-        let val internalStartName = "start$" ^ startName
-            val grammar =
-                List.foldl (fn ((name, productees), grammar) =>
-                                let val grammar =
-                                        StringMap.insert ( grammar, name
-                                                         , List.map (fn productee => 
-                                                                      { lookaheads = ()
-                                                                      , productees = [productee] })
-                                                                    productees )
-                                in if name = startName
-                                   then StringMap.insert ( grammar, internalStartName
-                                                         , [{lookaheads = (), productees = [[NonTerminal name, Terminal NONE]]}] )
-                                   else grammar
-                                end)
-                           StringMap.empty grammar
-            val (grammar, fiSets) = firstSets grammar
-            val foSets = followSets grammar fiSets
-            val grammar = StringMap.mapi (fn (name, branches) =>
-                                              let val followSet = StringMap.lookup (foSets, name)
-                                              in List.map (fn {lookaheads, productees} =>
-                                                               { lookaheads = predictionSet lookaheads followSet
-                                                               , productees })
-                                                          branches
-                                              end)
-                                         grammar
+        let val (grammar, internalStartName, fiSets) = analyze grammar startName
             val parsers = StringMap.map (fn _ => ref NONE) grammar
             do StringMap.appi (fn (name, branches) =>
                                    let val parser = namedParser fiSets parsers name branches
@@ -290,6 +299,47 @@ end = struct
                                    end)
                               grammar
         in valOf (!(StringMap.lookup (parsers, internalStartName)))
+        end
+
+    val preludeCode =
+        "fun match token input =\n" ^
+        "    let val token' = Input.pop input\n" ^
+        "    in  if token' = token\n" ^
+        "        then ()\n" ^
+        "        else raise Fail (\"expected \" ^ Token.toString token ^ \", got \" ^ Token.toString token')\n" ^
+        "    end"
+
+    val tokenPattern =
+        fn SOME token => "SOME #\"" ^ Token.toString token ^ "\""
+         | NONE => "NONE"
+
+    fun lookaheadPattern lookaheads =
+        String.concatWith " | " (List.map tokenPattern (FollowSet.listItems lookaheads))
+
+    val atomCode =
+        fn Terminal token => "match (" ^ tokenPattern token ^ ") input"
+         | NonTerminal name => name ^ " input"
+
+    val seqCode =
+        fn [] => "()"
+         | [atom] => atomCode atom
+         | atoms => "( " ^ String.concatWith "\n        ; " (List.map atomCode atoms) ^ " )"
+
+    fun branchCode {lookaheads, productees = [productee]} =
+        lookaheadPattern lookaheads ^ " =>\n        " ^ seqCode productee
+
+    (* FIXME: Detect conflicts *)
+    fun ntCode name branches =
+        "fun " ^ name ^ " input =\n"
+            ^ "    case Input.peek input\n"
+            ^ "    of " ^ String.concatWith "\n     | " (List.map branchCode branches) ^ "\n"
+            ^ "     | lookahead =>\n"
+            ^ "        raise Fail (\"unexpected \" ^ Lookahead.toString lookahead ^ \" in " ^ name ^ "\")"
+
+    fun parserCode grammar startName =
+        let val (grammar, internalStartName, fiSets) = analyze grammar startName
+        in preludeCode
+           ^ StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar
         end
 end
 
