@@ -1,43 +1,3 @@
-signature NIPO_TOKEN = sig
-    type t
-
-    val compare: t * t -> order
-    val toString: t -> string
-end
-
-signature NIPO_INPUT = sig
-    type stream
-    eqtype token
-
-    structure Token: NIPO_TOKEN where type t = token
-
-    val peek: stream -> token option
-    val pop: stream -> token option
-end
-
-structure NipoStringInput :> NIPO_INPUT
-    where type stream = char VectorSlice.slice ref
-    and type token = char
-= struct
-    type stream = char VectorSlice.slice ref
-    type token = char
-
-    structure Token = struct
-        type t = token
-        
-        val compare = Char.compare
-
-        fun toString c = "'" ^ Char.toString c ^ "'"
-    end
-
-    fun peek (ref cs) =
-        Option.map #1 (VectorSlice.getItem cs)
-
-    fun pop (input as ref cs) =
-        Option.map (fn (c, cs) => (input := cs; c))
-                   (VectorSlice.getItem cs)
-end
-
 signature NIPO_TOKEN_SET = sig
     include ORD_SET
 
@@ -49,8 +9,7 @@ functor NipoTokenSet(Token: NIPO_TOKEN) :> NIPO_TOKEN_SET where type item = Toke
         open Token
         type ord_key = t
     end)
-    open Super
-
+    open Super 
     fun toString tokens =
         let val contents =
                 foldl (fn (token, SOME acc) => SOME (acc ^ ", " ^ Token.toString token)
@@ -68,45 +27,14 @@ infixr 4 <*>
 (* TODO: External DSL *)
 (* TODO: Emit code instead of composing closures. *)
 functor NipoParsers(Input: NIPO_INPUT) :> sig
-    type rule
+    type atom
 
-    val rule: string -> rule
-    val token: Input.token -> rule
-    val empty: rule
-    val <|> : rule * rule -> rule
-    val <*> : rule * rule -> rule
+    val rule: string -> atom
+    val token: Input.token -> atom
 
-    val parser: (string * rule) list -> string -> Input.stream -> unit
+    val parser: (string * atom list list) list -> string -> Input.stream -> unit
 end = struct
     structure Token = Input.Token
-
-    datatype rule
-        = Terminal of Input.token
-        | NonTerminal of string
-        | Empty
-        | Seq of rule * rule
-        | Alt of rule * rule
-
-    val rule = NonTerminal
-    val token = Terminal
-    val empty = Empty
-    val op<*> = Seq
-    val op<|> = Alt
-
-    structure NullableToken = struct
-        datatype t = Token of Token.t
-                   | Epsilon
-
-        val compare =
-            fn (Token token, Token token') => Token.compare (token, token')
-             | (Token _, Epsilon) => GREATER
-             | (Epsilon, Token _) => LESS
-             | (Epsilon, Epsilon) => EQUAL
-
-        val toString =
-            fn Token token => Token.toString token
-             | Epsilon => "<epsilon>"
-    end
 
     structure Lookahead = struct
         type t = Token.t option
@@ -122,17 +50,44 @@ end = struct
              | NONE => "<EOF>"
     end
 
-    structure Grammar = BinaryMapFn(type ord_key = string val compare = String.compare)
+    structure NullableToken = struct
+        datatype t = Token of Lookahead.t
+                   | Epsilon
+
+        val compare =
+            fn (Token token, Token token') => Lookahead.compare (token, token')
+             | (Token _, Epsilon) => GREATER
+             | (Epsilon, Token _) => LESS
+             | (Epsilon, Epsilon) => EQUAL
+
+        val toString =
+            fn Token token => Lookahead.toString token
+             | Epsilon => "<epsilon>"
+    end
+
+    structure StringMap = BinaryMapFn(type ord_key = string val compare = String.compare)
     structure FirstSet = NipoTokenSet(NullableToken)
+    type first_set = FirstSet.set
     structure FollowSet = struct
         structure Super = NipoTokenSet(Lookahead)
         open Super
 
         val fromFirstSet =
-            FirstSet.foldl (fn (NullableToken.Token token, followSet) => add (followSet, SOME token)
+            FirstSet.foldl (fn (NullableToken.Token token, followSet) => add (followSet, token)
                              | (NullableToken.Epsilon, followSet) => followSet)
                            empty
     end
+    type follow_set = FollowSet.set
+    type lookahead_set = follow_set
+
+    datatype atom
+        = Terminal of Input.token option
+        | NonTerminal of string
+
+    val rule = NonTerminal
+    val token = Terminal o SOME
+
+    type 'laset branch = {lookaheads: 'laset, productees: atom list list}
 
     fun predictionSet firstSet followSet =
         if FirstSet.member (firstSet, NullableToken.Epsilon)
@@ -142,23 +97,38 @@ end = struct
  
     exception Changed
 
-    fun firstSet fiSets =
+    fun atomFirstSet fiSets =
         fn Terminal token => FirstSet.singleton (NullableToken.Token token)
-         | NonTerminal name => Grammar.lookup (fiSets, name)
-         | Empty => FirstSet.singleton NullableToken.Epsilon
-         | Seq (l, r) =>
-            let val lfirsts = firstSet fiSets l
-            in if FirstSet.member (lfirsts, NullableToken.Epsilon)
-               then FirstSet.union ( FirstSet.delete (lfirsts, NullableToken.Epsilon)
-                                   , firstSet fiSets r )
-               else lfirsts
-            end
-         | Alt (l, r) => FirstSet.union (firstSet fiSets l, firstSet fiSets r)
+         | NonTerminal name => StringMap.lookup (fiSets, name)
 
-    fun firstSets (grammar: rule Grammar.map) =
-        let fun changed sets sets' =
-                ( Grammar.appi (fn (name, set') =>
-                                    let val set = Grammar.lookup (sets, name)
+    fun producteeFirstSet fiSets =
+        fn atom :: atoms =>
+            let val firsts = atomFirstSet fiSets atom
+            in if FirstSet.member (firsts, NullableToken.Epsilon)
+               then FirstSet.union ( FirstSet.delete (firsts, NullableToken.Epsilon)
+                                   , producteeFirstSet fiSets atoms )
+               else firsts
+            end
+         | [] => FirstSet.singleton NullableToken.Epsilon
+
+    fun branchFirstSet fiSets productees =
+        List.foldl FirstSet.union
+                   FirstSet.empty
+                   (List.map (producteeFirstSet fiSets) productees)
+
+    fun firstSets (grammar: unit branch StringMap.map): first_set branch StringMap.map * first_set StringMap.map =
+        let fun iteration sets =
+                StringMap.foldli (fn (name, {lookaheads = _, productees}, (grammar, sets')) =>
+                                      let val firsts = branchFirstSet sets productees
+                                      in ( StringMap.insert (grammar, name, {lookaheads = firsts, productees})
+                                         , StringMap.insert (sets', name, firsts) )
+                                      end)
+                                 (StringMap.empty, StringMap.empty)
+                                 grammar
+
+            fun changed sets sets' =
+                ( StringMap.appi (fn (name, set') =>
+                                    let val set = StringMap.lookup (sets, name)
                                     in if FirstSet.isSubset (set', set)
                                        then ()
                                        else raise Changed
@@ -168,18 +138,19 @@ end = struct
                 handle Changed => true
 
             fun iterate sets =
-                let val sets' = Grammar.map (firstSet sets) grammar
+                let val (grammar', sets') = iteration sets
                 in if changed sets sets'
                    then iterate sets'
-                   else sets'
+                   else (grammar', sets')
                 end
-        in iterate (Grammar.mapi (fn _ => FirstSet.empty) grammar)
+        in iterate (StringMap.mapi (fn _ => FirstSet.empty) grammar)
         end
 
-    fun followSets grammar startName fiSets =
+    fun followSets (grammar: first_set branch StringMap.map) (fiSets: first_set StringMap.map)
+            : lookahead_set StringMap.map =
         let fun changed sets sets' =
-                ( Grammar.appi (fn (name, set') =>
-                                    let val set = Grammar.lookup (sets, name)
+                ( StringMap.appi (fn (name, set') =>
+                                    let val set = StringMap.lookup (sets, name)
                                     in if FollowSet.isSubset (set', set)
                                        then ()
                                        else raise Changed
@@ -188,108 +159,107 @@ end = struct
                 ; false )
                 handle Changed => true
 
-            fun ruleIteration (name, rule, sets) =
-                let fun update followSet rule sets' =
-                        case rule
-                        of Terminal _ => sets'
-                         | NonTerminal name' =>
-                            let val prev = Grammar.lookup (sets, name')
-                            in Grammar.insert (sets', name', FollowSet.union (prev, followSet))
-                            end
-                         | Empty => sets'
-                         | Seq (l, r) =>
-                            let val sets' = update followSet r sets'
-                                val rFirsts = firstSet fiSets r
-                                val lFollow = predictionSet rFirsts followSet
-                            in update lFollow l sets'
-                            end
-                         | Alt (l, r) =>
-                            let val sets' = update followSet l sets'
-                            in update followSet r sets'
-                            end
-                in update (Grammar.lookup (sets, name)) rule sets
+            fun atomIteration (atom, (followSet, sets')) =
+                ( predictionSet (atomFirstSet fiSets atom) followSet
+                , case atom
+                  of Terminal _ => sets'
+                   | NonTerminal name =>
+                      let val prev = StringMap.lookup (sets', name)
+                      in StringMap.insert (sets', name, FollowSet.union (prev, followSet))
+                      end )
+
+            fun producteeIteration followSet (productee, sets') =
+                #2 (List.foldr atomIteration (followSet, sets') productee)
+
+            fun branchIteration sets (name, {lookaheads = _, productees}, sets') =
+                let val followSet = StringMap.lookup (sets, name)
+                in List.foldl (producteeIteration followSet) sets' productees
                 end
 
             fun iterate sets =
-                let val sets' = Grammar.foldli ruleIteration sets grammar
+                let val sets' = StringMap.foldli (branchIteration sets) sets grammar
                 in if changed sets sets'
                    then iterate sets'
                    else sets'
                 end
-        in iterate (Grammar.mapi (fn (name, _) =>
-                                      if name = startName
-                                      then FollowSet.singleton NONE
-                                      else FollowSet.empty)
-                                grammar)
+        in iterate (StringMap.mapi (fn _ => FollowSet.empty) grammar)
         end
 
     type parser = Input.stream -> unit
 
     fun tokenParser name token input =
-        case Input.pop input
-        of SOME token' =>
-            if token' = token
-            then ()
-            else raise Fail ( "expected " ^ Token.toString token
-                            ^ ", got " ^ Token.toString token' ^ " in " ^ name )
-         | NONE => raise Fail ("EOF reached while expecting " ^ Token.toString token ^ " in " ^ name)
-
-    fun ruleParser fiSets foSets parsers name rule: parser =
-        let fun ntParser parser input = valOf (!parser) input
-
-            fun emptyParser _ = ()
-
-            fun seqParser followSet name p q =
-                let val p = parser (predictionSet (firstSet fiSets q) followSet) name p
-                    val q = parser followSet name q
-                in fn input => (p input; q input)
-                end
-
-            and altParser followSet name p q =
-                let val pfirsts = firstSet fiSets p (* OPTIMIZE *)
-                    val qfirsts = firstSet fiSets q (* OPTIMIZE *)
-                    val pPrediction = predictionSet pfirsts followSet
-                    val qPrediction = predictionSet qfirsts followSet
-                    do if FollowSet.isEmpty (FollowSet.intersection (pPrediction, qPrediction))
-                       then ()
-                       else raise Fail ( "Conflict: " ^ FollowSet.toString pPrediction
-                                       ^ " intersects with " ^ FollowSet.toString qPrediction
-                                       ^ " in " ^ name )
-                    val prediction = FollowSet.union (pPrediction, qPrediction)
-
-                    val p = parser followSet name p
-                    val q = parser followSet name q
-                in fn input =>
-                       let val token = Input.peek input
-                       in  if FollowSet.member (pPrediction, token)
-                           then p input
-                           else if FollowSet.member (qPrediction, token)
-                                then q input
-                                else raise Fail ( "expected one of " ^ FollowSet.toString prediction
-                                                ^ ", got " ^ Lookahead.toString token )
-                       end
-                end
-
-            and parser followSet name =
-                fn Terminal token => tokenParser name token
-                 | NonTerminal name => ntParser (Grammar.lookup (parsers, name))
-                 | Empty => emptyParser
-                 | Seq (p, q) => seqParser followSet name p q
-                 | Alt (p, q) => altParser followSet name p q
-        in parser (Grammar.lookup (foSets, name)) name rule
+        let val token' = Input.pop input
+        in if token' = token
+           then ()
+           else raise Fail ( "expected " ^ Lookahead.toString token
+                           ^ ", got " ^ Lookahead.toString token' ^ " in " ^ name )
         end
 
+    fun ntParser parser input = valOf (!parser) input
+
+    fun emptyParser _ = ()
+
+    fun atomParser parsers name =
+        fn Terminal token => tokenParser name token
+         | NonTerminal name' => ntParser (StringMap.lookup (parsers, name'))
+
+    fun seqParser parsers name =
+        fn atom :: atoms =>
+            let val parseHead = atomParser parsers name atom
+                val parseTail = seqParser parsers name atoms
+            in fn input => (parseHead input; parseTail input)
+            end
+         | [] => emptyParser
+
+    fun altParser fiSets parsers name followSet =
+        fn productee :: productees =>
+            let val firsts = producteeFirstSet fiSets productee
+                val firsts' = branchFirstSet fiSets productees
+                val prediction = predictionSet firsts followSet
+                val prediction' = predictionSet firsts' followSet
+                do if FollowSet.isEmpty (FollowSet.intersection (prediction, prediction'))
+                   then ()
+                   else raise Fail ( "Conflict: " ^ FollowSet.toString prediction
+                                   ^ " intersects with " ^ FollowSet.toString prediction'
+                                   ^ " in " ^ name )
+                val ntPrediction = FollowSet.union (prediction, prediction')
+
+                val parse = seqParser parsers name productee
+                val parse' = altParser fiSets parsers name followSet productees
+            in fn input =>
+                   let val token = Input.peek input
+                   in  if FollowSet.member (prediction, token)
+                       then parse input
+                       else if FollowSet.member (prediction', token)
+                            then parse' input
+                            else raise Fail ( "expected one of " ^ FollowSet.toString ntPrediction
+                                            ^ ", got " ^ Lookahead.toString token )
+                   end
+            end
+         | [] => fn _ => raise Fail "unreachable"
+
     fun parser grammar startName =
-        let val grammar = List.foldl Grammar.insert' Grammar.empty grammar
-            val fiSets = firstSets grammar
-            val foSets = followSets grammar startName fiSets
-            val parsers = Grammar.map (fn _ => ref NONE) grammar
-            do Grammar.appi (fn (name, rule) =>
-                                 let val parser = ruleParser fiSets foSets parsers name rule
-                                 in Grammar.lookup (parsers, name) := SOME parser
+        let val internalStartName = "start$" ^ startName
+            val grammar =
+                List.foldl (fn ((name, productees), grammar) =>
+                                let val grammar =
+                                        StringMap.insert (grammar, name, {lookaheads = (), productees})
+                                in if name = startName
+                                   then StringMap.insert ( grammar, internalStartName
+                                                         , {lookaheads = (), productees = [[NonTerminal name, Terminal NONE]]} )
+                                   else grammar
+                                end)
+                           StringMap.empty grammar
+            val (grammar, fiSets) = firstSets grammar
+            val foSets = followSets grammar fiSets
+            val parsers = StringMap.map (fn _ => ref NONE) grammar
+            do StringMap.appi (fn (name, {lookaheads = _, productees}) =>
+                                 let val followSet = StringMap.lookup (foSets, name)
+                                     val parser = altParser fiSets parsers name followSet productees
+                                 in StringMap.lookup (parsers, name) := SOME parser
                                  end)
                             grammar
-        in valOf (!(Grammar.lookup (parsers, startName)))
+        in valOf (!(StringMap.lookup (parsers, internalStartName)))
         end
 end
 
