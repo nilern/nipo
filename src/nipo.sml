@@ -26,13 +26,14 @@ infixr 4 <*>
 
 (* TODO: External DSL *)
 (* TODO: Emit code instead of composing closures. *)
+(* TODO: LL(1) -> PLL(1) *)
 functor NipoParsers(Input: NIPO_INPUT) :> sig
     type atom
 
     val rule: string -> atom
     val token: Input.token -> atom
 
-    val parser: (string * atom list list) list -> string -> Input.stream -> unit
+    val parser: (string * atom list list) list -> string -> (Input.stream -> unit)
 end = struct
     structure Token = Input.Token
 
@@ -220,12 +221,12 @@ end = struct
             end
          | [] => emptyParser
 
-    fun altParser fiSets parsers name followSet =
-        fn productee :: productees =>
-            let val firsts = producteeFirstSet fiSets productee
-                val firsts' = branchFirstSet fiSets productees
-                val prediction = predictionSet firsts followSet
-                val prediction' = predictionSet firsts' followSet
+    fun altParser fiSets parsers name =
+        fn {lookaheads, productee} :: productees =>
+            let val prediction = lookaheads
+                val prediction' = List.foldl FollowSet.union
+                                             FollowSet.empty
+                                             (List.map #lookaheads productees)
                 do if FollowSet.isEmpty (FollowSet.intersection (prediction, prediction'))
                    then ()
                    else raise Fail ( "Conflict: " ^ FollowSet.toString prediction
@@ -234,7 +235,7 @@ end = struct
                 val ntPrediction = FollowSet.union (prediction, prediction')
 
                 val parse = seqParser parsers name productee
-                val parse' = altParser fiSets parsers name followSet productees
+                val parse' = altParser fiSets parsers name productees
             in fn input =>
                    let val token = Input.peek input
                    in  if FollowSet.member (prediction, token)
@@ -247,11 +248,11 @@ end = struct
             end
          | [] => fn _ => raise Fail "unreachable"
 
-    fun namedParser fiSets parsers name followSet branches =
-        let val productees = List.map (fn {lookaheads = _, productees = [productee]} => productee
-                                        | _ => raise Fail ("ambiguous branch in " ^ name))
-                                      branches
-        in altParser fiSets parsers name followSet productees
+    fun namedParser fiSets parsers name branches =
+        let val branches = List.map (fn {lookaheads, productees = [productee]} => {lookaheads, productee}
+                                      | _ => raise Fail ("ambiguous branch in " ^ name))
+                                    branches
+        in altParser fiSets parsers name branches
         end
 
     fun parser grammar startName =
@@ -272,12 +273,19 @@ end = struct
                            StringMap.empty grammar
             val (grammar, fiSets) = firstSets grammar
             val foSets = followSets grammar fiSets
+            val grammar = StringMap.mapi (fn (name, branches) =>
+                                              let val followSet = StringMap.lookup (foSets, name)
+                                              in List.map (fn {lookaheads, productees} =>
+                                                               { lookaheads = predictionSet lookaheads followSet
+                                                               , productees })
+                                                          branches
+                                              end)
+                                         grammar
             val parsers = StringMap.map (fn _ => ref NONE) grammar
             do StringMap.appi (fn (name, branches) =>
-                                   let val followSet = StringMap.lookup (foSets, name)
-                                       val parser = namedParser fiSets parsers name followSet branches
+                                   let val parser = namedParser fiSets parsers name branches
                                        (*val _ = print ("FIRST(" ^ name ^ ") = " ^ FirstSet.toString (StringMap.lookup (fiSets, name)) ^ "\n")
-                                       val _ = print ("FOLLOW(" ^ name ^ ") = " ^ FollowSet.toString followSet ^ "\n")*)
+                                       val _ = print ("FOLLOW(" ^ name ^ ") = " ^ FollowSet.toString (StringMap.lookup (foSets, name)) ^ "\n")*)
                                    in StringMap.lookup (parsers, name) := SOME parser
                                    end)
                               grammar
