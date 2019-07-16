@@ -116,11 +116,17 @@ end = struct
                    FirstSet.empty
                    (List.map (producteeFirstSet fiSets) productees)
 
-    fun firstSets (grammar: unit branch StringMap.map): first_set branch StringMap.map * first_set StringMap.map =
-        let fun iteration sets =
-                StringMap.foldli (fn (name, {lookaheads = _, productees}, (grammar, sets')) =>
-                                      let val firsts = branchFirstSet sets productees
-                                      in ( StringMap.insert (grammar, name, {lookaheads = firsts, productees})
+    fun firstSets (grammar: unit branch list StringMap.map): first_set branch list StringMap.map * first_set StringMap.map =
+        let fun branchIteration sets {lookaheads = _, productees} =
+                {lookaheads = branchFirstSet sets productees, productees}
+
+            fun iteration sets =
+                StringMap.foldli (fn (name, branches, (grammar, sets')) =>
+                                      let val branches' = List.map (branchIteration sets) branches
+                                          val firsts = List.foldl FirstSet.union
+                                                                  FirstSet.empty
+                                                                  (List.map #lookaheads branches')
+                                      in ( StringMap.insert (grammar, name, branches')
                                          , StringMap.insert (sets', name, firsts) )
                                       end)
                                  (StringMap.empty, StringMap.empty)
@@ -146,7 +152,7 @@ end = struct
         in iterate (StringMap.mapi (fn _ => FirstSet.empty) grammar)
         end
 
-    fun followSets (grammar: first_set branch StringMap.map) (fiSets: first_set StringMap.map)
+    fun followSets (grammar: first_set branch list StringMap.map) (fiSets: first_set StringMap.map)
             : lookahead_set StringMap.map =
         let fun changed sets sets' =
                 ( StringMap.appi (fn (name, set') =>
@@ -171,13 +177,16 @@ end = struct
             fun producteeIteration followSet (productee, sets') =
                 #2 (List.foldr atomIteration (followSet, sets') productee)
 
-            fun branchIteration sets (name, {lookaheads = _, productees}, sets') =
+            fun branchIteration sets name ({lookaheads = _, productees}, sets') =
                 let val followSet = StringMap.lookup (sets, name)
                 in List.foldl (producteeIteration followSet) sets' productees
                 end
 
+            fun ntIteration sets (name, branches, sets') =
+                List.foldl (branchIteration sets name) sets' branches
+
             fun iterate sets =
-                let val sets' = StringMap.foldli (branchIteration sets) sets grammar
+                let val sets' = StringMap.foldli (ntIteration sets) sets grammar
                 in if changed sets sets'
                    then iterate sets'
                    else sets'
@@ -238,27 +247,40 @@ end = struct
             end
          | [] => fn _ => raise Fail "unreachable"
 
+    fun namedParser fiSets parsers name followSet branches =
+        let val productees = List.map (fn {lookaheads = _, productees = [productee]} => productee
+                                        | _ => raise Fail ("ambiguous branch in " ^ name))
+                                      branches
+        in altParser fiSets parsers name followSet productees
+        end
+
     fun parser grammar startName =
         let val internalStartName = "start$" ^ startName
             val grammar =
                 List.foldl (fn ((name, productees), grammar) =>
                                 let val grammar =
-                                        StringMap.insert (grammar, name, {lookaheads = (), productees})
+                                        StringMap.insert ( grammar, name
+                                                         , List.map (fn productee => 
+                                                                      { lookaheads = ()
+                                                                      , productees = [productee] })
+                                                                    productees )
                                 in if name = startName
                                    then StringMap.insert ( grammar, internalStartName
-                                                         , {lookaheads = (), productees = [[NonTerminal name, Terminal NONE]]} )
+                                                         , [{lookaheads = (), productees = [[NonTerminal name, Terminal NONE]]}] )
                                    else grammar
                                 end)
                            StringMap.empty grammar
             val (grammar, fiSets) = firstSets grammar
             val foSets = followSets grammar fiSets
             val parsers = StringMap.map (fn _ => ref NONE) grammar
-            do StringMap.appi (fn (name, {lookaheads = _, productees}) =>
-                                 let val followSet = StringMap.lookup (foSets, name)
-                                     val parser = altParser fiSets parsers name followSet productees
-                                 in StringMap.lookup (parsers, name) := SOME parser
-                                 end)
-                            grammar
+            do StringMap.appi (fn (name, branches) =>
+                                   let val followSet = StringMap.lookup (foSets, name)
+                                       val parser = namedParser fiSets parsers name followSet branches
+                                       (*val _ = print ("FIRST(" ^ name ^ ") = " ^ FirstSet.toString (StringMap.lookup (fiSets, name)) ^ "\n")
+                                       val _ = print ("FOLLOW(" ^ name ^ ") = " ^ FollowSet.toString followSet ^ "\n")*)
+                                   in StringMap.lookup (parsers, name) := SOME parser
+                                   end)
+                              grammar
         in valOf (!(StringMap.lookup (parsers, internalStartName)))
         end
 end
