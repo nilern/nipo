@@ -34,7 +34,6 @@ functor NipoParsers(Input: NIPO_INPUT) :> sig
     val rule: string -> atom
     val token: Input.token -> atom
 
-    val parser: input_grammar -> string -> (Input.stream -> unit)
     val parserCode: input_grammar -> string -> string
 end = struct
     structure Token = Input.Token
@@ -226,79 +225,6 @@ end = struct
                                               end)
                                          grammar
         in (grammar, internalStartName, fiSets)
-        end
-
-    type parser = Input.stream -> unit
-
-    fun tokenParser name token input =
-        let val token' = Input.pop input
-        in if token' = token
-           then ()
-           else raise Fail ( "expected " ^ Lookahead.toString token
-                           ^ ", got " ^ Lookahead.toString token' ^ " in " ^ name )
-        end
-
-    fun ntParser parser input = valOf (!parser) input
-
-    fun emptyParser _ = ()
-
-    fun atomParser parsers name =
-        fn Terminal token => tokenParser name token
-         | NonTerminal name' => ntParser (StringMap.lookup (parsers, name'))
-
-    fun seqParser parsers name =
-        fn atom :: atoms =>
-            let val parseHead = atomParser parsers name atom
-                val parseTail = seqParser parsers name atoms
-            in fn input => (parseHead input; parseTail input)
-            end
-         | [] => emptyParser
-
-    fun altParser fiSets parsers name =
-        fn {lookaheads, productee} :: productees =>
-            let val prediction = lookaheads
-                val prediction' = List.foldl FollowSet.union
-                                             FollowSet.empty
-                                             (List.map #lookaheads productees)
-                do if FollowSet.isEmpty (FollowSet.intersection (prediction, prediction'))
-                   then ()
-                   else raise Fail ( "Conflict: " ^ FollowSet.toString prediction
-                                   ^ " intersects with " ^ FollowSet.toString prediction'
-                                   ^ " in " ^ name )
-                val ntPrediction = FollowSet.union (prediction, prediction')
-
-                val parse = seqParser parsers name productee
-                val parse' = altParser fiSets parsers name productees
-            in fn input =>
-                   let val token = Input.peek input
-                   in  if FollowSet.member (prediction, token)
-                       then parse input
-                       else if FollowSet.member (prediction', token)
-                            then parse' input
-                            else raise Fail ( "expected one of " ^ FollowSet.toString ntPrediction
-                                            ^ ", got " ^ Lookahead.toString token )
-                   end
-            end
-         | [] => fn _ => raise Fail "unreachable"
-
-    fun namedParser fiSets parsers name branches =
-        let val branches = List.map (fn {lookaheads, productees = [productee]} => {lookaheads, productee}
-                                      | _ => raise Fail ("ambiguous branch in " ^ name))
-                                    branches
-        in altParser fiSets parsers name branches
-        end
-
-    fun parser grammar startName =
-        let val (grammar, internalStartName, fiSets) = analyze grammar startName
-            val parsers = StringMap.map (fn _ => ref NONE) grammar
-            do StringMap.appi (fn (name, branches) =>
-                                   let val parser = namedParser fiSets parsers name branches
-                                       (*val _ = print ("FIRST(" ^ name ^ ") = " ^ FirstSet.toString (StringMap.lookup (fiSets, name)) ^ "\n")
-                                       val _ = print ("FOLLOW(" ^ name ^ ") = " ^ FollowSet.toString (StringMap.lookup (foSets, name)) ^ "\n")*)
-                                   in StringMap.lookup (parsers, name) := SOME parser
-                                   end)
-                              grammar
-        in valOf (!(StringMap.lookup (parsers, internalStartName)))
         end
 
     val preludeCode =
