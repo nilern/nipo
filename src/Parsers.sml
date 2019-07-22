@@ -4,7 +4,7 @@ signature NIPO_TOKEN_SET = sig
     val toString: set -> string
 end
 
-functor NipoTokenSet(Token: NIPO_TOKEN) :> NIPO_TOKEN_SET where type item = Token.t = struct
+functor NipoTokenSet(Token: LEXEME) :> NIPO_TOKEN_SET where type item = Token.t = struct
     structure Super = BinarySetFn(struct
         open Token
         type ord_key = t

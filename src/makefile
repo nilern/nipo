@@ -1,13 +1,13 @@
 .PHONY: all
 all: nipo
 
-nipo: main.mlb Input/input.sml Grammar.sml nipo.sml NipoLexers.sml
+nipo: main.mlb Lexeme.sml Grammar.sml Parsers.sml Lexers.sml
 	mlton -output nipo main.mlb
 
 SelfLexer.sml: BootstrapLexer
 	./BootstrapLexer > SelfLexer.sml
 
-BootstrapLexer: BootstrapLexer.mlb Input/input.sml Grammar.sml nipo.sml NipoLexers.sml BootstrapLexer.sml
+BootstrapLexer: BootstrapLexer.mlb Lexeme.sml Grammar.sml Parsers.sml Lexers.sml BootstrapLexer.sml
 	mlton BootstrapLexer.mlb
 
 .PHONY: clean
