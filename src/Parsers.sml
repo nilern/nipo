@@ -79,7 +79,7 @@ end = struct
     type follow_set = FollowSet.set
     type lookahead_set = follow_set
 
-    type 'laset branch = {lookaheads: 'laset, productees: atom list list}
+    type 'laset branch = {lookaheads: 'laset, productees: {atoms: atom list, action: string} list}
 
     fun predictionSet firstSet followSet =
         if FirstSet.member (firstSet, NullableToken.Epsilon)
@@ -93,15 +93,18 @@ end = struct
         fn Terminal token => FirstSet.singleton (NullableToken.Token token)
          | NonTerminal name => StringMap.lookup (fiSets, name)
 
-    fun producteeFirstSet fiSets =
-        fn atom :: atoms =>
-            let val firsts = atomFirstSet fiSets atom
-            in if FirstSet.member (firsts, NullableToken.Epsilon)
-               then FirstSet.union ( FirstSet.delete (firsts, NullableToken.Epsilon)
-                                   , producteeFirstSet fiSets atoms )
-               else firsts
-            end
-         | [] => FirstSet.singleton NullableToken.Epsilon
+    fun producteeFirstSet fiSets {atoms, action = _} =
+        let val rec atomsFirstSet =
+                fn atom :: atoms =>
+                    let val firsts = atomFirstSet fiSets atom
+                    in if FirstSet.member (firsts, NullableToken.Epsilon)
+                       then FirstSet.union ( FirstSet.delete (firsts, NullableToken.Epsilon)
+                                           , atomsFirstSet atoms )
+                       else firsts
+                    end
+                 | [] => FirstSet.singleton NullableToken.Epsilon
+        in atomsFirstSet atoms
+        end
 
     fun branchFirstSet fiSets productees =
         List.foldl FirstSet.union
@@ -167,7 +170,7 @@ end = struct
                       end )
 
             fun producteeIteration followSet (productee, sets') =
-                #2 (List.foldr atomIteration (followSet, sets') productee)
+                #2 (List.foldr atomIteration (followSet, sets') (#atoms productee))
 
             fun branchIteration sets name ({lookaheads = _, productees}, sets') =
                 let val followSet = StringMap.lookup (sets, name)
@@ -197,7 +200,8 @@ end = struct
                            (case internalStartName
                             of SOME internalStartName =>
                                 StringMap.insert ( StringMap.empty, internalStartName
-                                                 , [{lookaheads = (), productees = [[NonTerminal startName, Terminal NONE]]}] )
+                                                 , [{lookaheads = (), productees = [{ atoms = [NonTerminal startName, Terminal NONE]
+                                                                                    , action = "startName" } ]}] )
                              | _ => StringMap.empty)
                            grammar
             val (grammar, fiSets) = firstSets grammar
@@ -238,8 +242,13 @@ end = struct
          | [atom] => atomCode atom
          | atoms => "( " ^ String.concatWith "\n            ; " (List.map atomCode atoms) ^ " )"
 
+    fun producteeCode {atoms, action} =
+        case atoms
+        of [] => action
+         | _ => "( " ^ String.concatWith "\n            ; " (List.map atomCode atoms @ [action]) ^ " )"
+
     fun branchCode {lookaheads, productees = [productee]} =
-        lookaheadPattern lookaheads ^ " =>\n            " ^ seqCode productee
+        lookaheadPattern lookaheads ^ " =>\n            " ^ producteeCode productee
 
     (* FIXME: Detect conflicts *)
     fun ntCode name branches =

@@ -9,6 +9,7 @@ ann "allowSuccessorML true" in
     ../lib/Input/Pos.sml
     ../lib/Input/input.sml
     ../lib/Lexer.sml
+    NipoTokens.sml
     SelfLexer.sml
 end
 
