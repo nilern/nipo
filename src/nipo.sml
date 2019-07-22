@@ -27,16 +27,11 @@ infixr 4 <*>
 (* TODO: External DSL *)
 (* TODO: Emit code instead of composing closures. *)
 (* TODO: LL(1) -> PLL(1) *)
-functor NipoParsers(Input: NIPO_INPUT) :> sig
-    type atom
-    type input_grammar = (string * atom list list) list
-
-    val rule: string -> atom
-    val token: Input.token -> atom
-
-    val parserCode: input_grammar -> string -> string
+structure NipoParsers :> sig
+    val parserCode: Grammar.grammar -> string -> string
 end = struct
-    structure Token = Input.Token
+    structure Token = Grammar.Token
+    datatype atom = datatype Grammar.atom
 
     structure Lookahead = struct
         type t = Token.t option
@@ -81,15 +76,6 @@ end = struct
     end
     type follow_set = FollowSet.set
     type lookahead_set = follow_set
-
-    datatype atom
-        = Terminal of Input.token option
-        | NonTerminal of string
-
-    val rule = NonTerminal
-    val token = Terminal o SOME
-
-    type input_grammar = (string * atom list list) list
 
     type 'laset branch = {lookaheads: 'laset, productees: atom list list}
 

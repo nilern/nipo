@@ -2,7 +2,7 @@
 all: nipo
 
 nipo: main.mlb Grammar.sml nipo.sml NipoLexers.sml
-	mlton main.mlb
+	mlton -output nipo main.mlb
 
 SelfLexer.sml: BootstrapLexer
 	./BootstrapLexer > SelfLexer.sml
@@ -12,5 +12,5 @@ BootstrapLexer: BootstrapLexer.mlb NipoLexers.sml BootstrapLexer.sml
 
 .PHONY: clean
 clean:
-	rm -f BootstrapLexer SelfLexer.sml
+	rm -f BootstrapLexer SelfLexer.sml nipo
 
