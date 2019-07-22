@@ -1,4 +1,4 @@
-arith: arith.sml arith.mlb ../../src/nipo.sml ../../src/input.sml
+arith: arith.sml arith.mlb
 	mlton -const 'Exn.keepHistory true' arith.mlb
 
 .PHONY: run

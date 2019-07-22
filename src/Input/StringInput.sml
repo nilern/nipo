@@ -1,20 +1,3 @@
-signature NIPO_TOKEN = sig
-    type t
-
-    val compare: t * t -> order
-    val toString: t -> string
-end
-
-signature NIPO_INPUT = sig
-    type stream
-    eqtype token
-
-    structure Token: NIPO_TOKEN where type t = token
-
-    val peek: stream -> token option
-    val pop: stream -> token option
-end
-
 structure NipoStringInput :> NIPO_INPUT
     where type stream = char VectorSlice.slice ref
     and type token = char
