@@ -25,7 +25,12 @@ signature RESETABLE_NIPO_INPUT = sig
     val reset: stream * checkpoint -> unit
 end
 
-signature NIPO_LEXER_INPUT = RESETABLE_NIPO_INPUT
-    where type Token.t = char
-    where type Token.vector = string
+signature NIPO_LEXER_INPUT = sig
+    include RESETABLE_NIPO_INPUT
+        where type Token.t = char
+        where type Token.vector = string
+
+    include POSITIONED
+        where type t = stream
+end
 

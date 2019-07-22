@@ -7,11 +7,14 @@ end = struct
 
     fun driverCode startName =
         "    fun next input =\n" ^
-        "        let val mark = Input.checkpoint input\n" ^
-        "            val (actionIndex, len) = " ^ startName ^ " input\n" ^
+        "        let val startPos = Input.pos input\n" ^
+        "            val mark = Input.checkpoint input\n" ^
+        "            val actionIndex = " ^ startName ^ " input\n" ^
+        "            val endPos = Input.pos input\n" ^
         "            val _ = Input.reset (input, mark)\n" ^
+        "            val len = #index endPos - #index startPos\n" ^
         "            val recognizedPrefix = Input.inputN (input, len)\n" ^
-        "        in Vector.sub (actions, actionIndex) recognizedPrefix\n" ^
+        "        in Vector.sub (actions, actionIndex) (startPos, recognizedPrefix, endPos)\n" ^
         "        end\n"
 
     fun lexerCode name grammar startName =
