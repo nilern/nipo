@@ -28,6 +28,8 @@ infixr 4 <*>
 (* TODO: Emit code instead of composing closures. *)
 (* TODO: LL(1) -> PLL(1) *)
 structure NipoParsers :> sig
+    val matchCode: string
+    val recognizerRulesCode: Grammar.grammar -> string -> string
     val parserCode: Grammar.grammar -> string -> string
 end = struct
     structure Token = Grammar.Token
@@ -184,22 +186,20 @@ end = struct
         in iterate (StringMap.mapi (fn _ => FollowSet.empty) grammar)
         end
 
-    fun analyze grammar startName =
-        let val internalStartName = "start$" ^ startName
-            val grammar =
+    fun analyze grammar startName internalStartName =
+        let val grammar =
                 List.foldl (fn ((name, productees), grammar) =>
-                                let val grammar =
-                                        StringMap.insert ( grammar, name
-                                                         , List.map (fn productee => 
-                                                                      { lookaheads = ()
-                                                                      , productees = [productee] })
-                                                                    productees )
-                                in if name = startName
-                                   then StringMap.insert ( grammar, internalStartName
-                                                         , [{lookaheads = (), productees = [[NonTerminal name, Terminal NONE]]}] )
-                                   else grammar
-                                end)
-                           StringMap.empty grammar
+                                StringMap.insert ( grammar, name
+                                                 , List.map (fn productee => 
+                                                              { lookaheads = ()
+                                                              , productees = [productee] })
+                                                            productees ))
+                           (case internalStartName
+                            of SOME internalStartName =>
+                                StringMap.insert ( StringMap.empty, internalStartName
+                                                 , [{lookaheads = (), productees = [[NonTerminal startName, Terminal NONE]]}] )
+                             | _ => StringMap.empty)
+                           grammar
             val (grammar, fiSets) = firstSets grammar
             val foSets = followSets grammar fiSets
             val grammar = StringMap.mapi (fn (name, branches) =>
@@ -210,10 +210,10 @@ end = struct
                                                           branches
                                               end)
                                          grammar
-        in (grammar, internalStartName, fiSets)
+        in (grammar, fiSets)
         end
 
-    val preludeCode =
+    val matchCode =
         "fun match token input =\n" ^
         "    let val token' = Input.pop input\n" ^
         "    in  if token' = token\n" ^
@@ -242,16 +242,25 @@ end = struct
 
     (* FIXME: Detect conflicts *)
     fun ntCode name branches =
-        "fun " ^ name ^ " input =\n"
+        "and " ^ name ^ " input =\n"
             ^ "    case Input.peek input\n"
             ^ "    of " ^ String.concatWith "\n     | " (List.map branchCode branches) ^ "\n"
             ^ "     | lookahead =>\n"
             ^ "        raise Fail (\"unexpected \" ^ Lookahead.toString lookahead ^ \" in " ^ name ^ "\")"
 
+    fun rulesCode grammar =
+        StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar
+
+    fun recognizerRulesCode grammar startName =
+        let val (grammar, _) = analyze grammar startName NONE
+        in rulesCode grammar
+        end
+
     fun parserCode grammar startName =
-        let val (grammar, internalStartName, fiSets) = analyze grammar startName
-        in preludeCode
-           ^ StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar
+        let val internalStartName = "start$" ^ startName
+            val (grammar, fiSets) = analyze grammar startName (SOME internalStartName)
+        in matchCode
+           ^ rulesCode grammar
         end
 end
 

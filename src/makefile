@@ -1,7 +1,7 @@
 .PHONY: all
 all: nipo
 
-nipo: main.mlb Input.sml Grammar.sml nipo.sml NipoLexers.sml
+nipo: main.mlb Input/input.sml Grammar.sml nipo.sml NipoLexers.sml
 	mlton -output nipo main.mlb
 
 SelfLexer.sml: BootstrapLexer

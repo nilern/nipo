@@ -15,7 +15,8 @@ end = struct
         "    end\n"
 
     fun lexerCode grammar startName =
-        NipoParsers.parserCode grammar startName ^ "\n\n" ^
-        driverCode startName
+        NipoParsers.matchCode
+        ^ NipoParsers.recognizerRulesCode grammar startName ^ "\n\n"
+        ^ driverCode startName
 end
 
