@@ -214,12 +214,12 @@ end = struct
         end
 
     val matchCode =
-        "fun match token input =\n" ^
-        "    let val token' = Input.pop input\n" ^
-        "    in  if token' = token\n" ^
-        "        then ()\n" ^
-        "        else raise Fail (\"expected \" ^ Token.toString token ^ \", got \" ^ Token.toString token')\n" ^
-        "    end"
+        "    fun match token input =\n" ^
+        "        let val token' = Input.pop input\n" ^
+        "        in  if token' = token\n" ^
+        "            then ()\n" ^
+        "            else raise Fail (\"expected \" ^ Token.toString token ^ \", got \" ^ Token.toString token')\n" ^
+        "        end"
 
     val tokenPattern =
         fn SOME token => "SOME " ^ Token.toString token
@@ -235,18 +235,18 @@ end = struct
     val seqCode =
         fn [] => "()"
          | [atom] => atomCode atom
-         | atoms => "( " ^ String.concatWith "\n        ; " (List.map atomCode atoms) ^ " )"
+         | atoms => "( " ^ String.concatWith "\n            ; " (List.map atomCode atoms) ^ " )"
 
     fun branchCode {lookaheads, productees = [productee]} =
-        lookaheadPattern lookaheads ^ " =>\n        " ^ seqCode productee
+        lookaheadPattern lookaheads ^ " =>\n            " ^ seqCode productee
 
     (* FIXME: Detect conflicts *)
     fun ntCode name branches =
-        "and " ^ name ^ " input =\n"
-            ^ "    case Input.peek input\n"
-            ^ "    of " ^ String.concatWith "\n     | " (List.map branchCode branches) ^ "\n"
-            ^ "     | lookahead =>\n"
-            ^ "        raise Fail (\"unexpected \" ^ Lookahead.toString lookahead ^ \" in " ^ name ^ "\")"
+        "    and " ^ name ^ " input =\n"
+            ^ "        case Input.peek input\n"
+            ^ "        of " ^ String.concatWith "\n         | " (List.map branchCode branches) ^ "\n"
+            ^ "         | lookahead =>\n"
+            ^ "            raise Fail (\"unexpected \" ^ Lookahead.toString lookahead ^ \" in " ^ name ^ "\")"
 
     fun rulesCode grammar =
         StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar

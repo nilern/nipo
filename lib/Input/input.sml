@@ -1,17 +1,18 @@
 signature NIPO_TOKEN = sig
     type t
+    type vector
 
     val toString: t -> string
 end
 
 signature NIPO_INPUT = sig
     type stream
-    type token
 
-    structure Token: NIPO_TOKEN where type t = token
+    structure Token: NIPO_TOKEN
 
-    val peek: stream -> token option
-    val pop: stream -> token option
+    val peek: stream -> Token.t option
+    val pop: stream -> Token.t option
+    val inputN: stream * int -> Token.vector
 end
 
 signature RESETABLE_NIPO_INPUT = sig
@@ -22,4 +23,7 @@ signature RESETABLE_NIPO_INPUT = sig
     val checkpoint: stream -> checkpoint
     val reset: stream * checkpoint -> unit
 end
+
+signature NIPO_LEXER_INPUT = RESETABLE_NIPO_INPUT
+    where type Token.t = char
 

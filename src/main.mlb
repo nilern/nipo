@@ -6,5 +6,8 @@ ann "allowSuccessorML true" in
     Grammar.sml
     Parsers.sml
     Lexers.sml
+    ../lib/Input/input.sml
+    ../lib/Lexer.sml
+    SelfLexer.sml
 end
 
