@@ -1,5 +1,8 @@
 .PHONY: all
-all: SelfLexer.sml
+all: nipo
+
+nipo: main.mlb Grammar.sml nipo.sml NipoLexers.sml
+	mlton main.mlb
 
 SelfLexer.sml: BootstrapLexer
 	./BootstrapLexer > SelfLexer.sml
