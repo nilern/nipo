@@ -218,7 +218,8 @@ end = struct
         "        let val token' = Input.pop input\n" ^
         "        in  if token' = token\n" ^
         "            then ()\n" ^
-        "            else raise Fail (\"expected \" ^ Token.toString token ^ \", got \" ^ Token.toString token')\n" ^
+        "            else raise Fail ( \"expected \" ^ Token.lookaheadToString token\n" ^
+        "                            ^ \" got \" ^ Token.lookaheadToString token' )\n" ^
         "        end"
 
     val tokenPattern =
@@ -246,7 +247,7 @@ end = struct
             ^ "        case Input.peek input\n"
             ^ "        of " ^ String.concatWith "\n         | " (List.map branchCode branches) ^ "\n"
             ^ "         | lookahead =>\n"
-            ^ "            raise Fail (\"unexpected \" ^ Lookahead.toString lookahead ^ \" in " ^ name ^ "\")"
+            ^ "            raise Fail (\"unexpected \" ^ Token.lookaheadToString lookahead ^ \" in " ^ name ^ "\")"
 
     fun rulesCode grammar =
         StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar

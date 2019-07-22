@@ -3,6 +3,7 @@ signature NIPO_TOKEN = sig
     type vector
 
     val toString: t -> string
+    val lookaheadToString: t option -> string
 end
 
 signature NIPO_INPUT = sig
@@ -26,4 +27,5 @@ end
 
 signature NIPO_LEXER_INPUT = RESETABLE_NIPO_INPUT
     where type Token.t = char
+    where type Token.vector = string
 

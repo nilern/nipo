@@ -12,6 +12,9 @@ structure NipoStringInput :> RESETABLE_NIPO_INPUT
         
         val compare = Char.compare
         fun toString c = Char.toString c
+        val lookaheadToString =
+            fn SOME c => toString c
+             | NONE => "EOF"
     end
 
     fun peek (ref cs) =
