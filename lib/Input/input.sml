@@ -32,5 +32,8 @@ signature NIPO_LEXER_INPUT = sig
 
     include POSITIONED
         where type t = stream
+
+    structure Inner: RESETABLE_NIPO_INPUT
+    val inner: stream -> Inner.stream
 end
 

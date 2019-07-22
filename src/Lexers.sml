@@ -8,12 +8,15 @@ end = struct
     fun driverCode startName =
         "    fun next input =\n" ^
         "        let val startPos = Input.pos input\n" ^
-        "            val mark = Input.checkpoint input\n" ^
+        "            val startMark = Input.checkpoint input\n" ^
         "            val actionIndex = " ^ startName ^ " input\n" ^
         "            val endPos = Input.pos input\n" ^
-        "            val _ = Input.reset (input, mark)\n" ^
+        "            val endMark = Input.checkpoint input\n" ^
+        "            val _ = Input.reset (input, startMark)\n" ^
         "            val len = #index endPos - #index startPos\n" ^
-        "            val recognizedPrefix = Input.inputN (input, len)\n" ^
+        "            (* Slightly breach abstraction to avoid recomputing `endPos`: *)\n" ^
+        "            val recognizedPrefix = Input.Inner.inputN (Input.inner input, len)\n" ^
+        "            val _ = Input.reset (input, endMark)\n" ^
         "        in Vector.sub (actions, actionIndex) (startPos, recognizedPrefix, endPos)\n" ^
         "        end\n"
 
