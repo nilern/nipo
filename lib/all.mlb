@@ -2,4 +2,5 @@ $(SML_LIB)/basis/basis.mlb
 
 Input/input.sml
 Input/StringInput.sml
+Input/StreamIOInput.sml
 

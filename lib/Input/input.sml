@@ -1,12 +1,12 @@
 signature NIPO_TOKEN = sig
-    eqtype t
+    type t
 
     val toString: t -> string
 end
 
 signature NIPO_INPUT = sig
     type stream
-    eqtype token
+    type token
 
     structure Token: NIPO_TOKEN where type t = token
 
