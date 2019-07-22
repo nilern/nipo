@@ -1,10 +1,11 @@
 structure Lexers = NipoLexers
-datatype atom = datatype Lexers.atom
+datatype atom = datatype Grammar.atom
+val token = Terminal o SOME
 
 val grammar =
-    [ ("token", [ [Char #"|"]
-                , [Char #"{"]
-                , [Char #"}"] ]) ]
+    [ ("token", [ [token "#\"|\""]
+                , [token "#\"{\""]
+                , [token "#\"}\""] ]) ]
 
 val _ = print (Lexers.lexerCode grammar "token")
 

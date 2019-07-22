@@ -222,7 +222,7 @@ end = struct
         "    end"
 
     val tokenPattern =
-        fn SOME token => "SOME #\"" ^ Token.toString token ^ "\""
+        fn SOME token => "SOME " ^ Token.toString token
          | NONE => "NONE"
 
     fun lookaheadPattern lookaheads =

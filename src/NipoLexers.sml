@@ -1,9 +1,5 @@
 structure NipoLexers :> sig
-    datatype atom = Char of char
-
-    type input_grammar = (string * atom list list) list 
-
-    val lexerCode: input_grammar -> string -> string
+    val lexerCode: Grammar.grammar -> string -> string
 end = struct
     datatype atom = Char of char
 
@@ -19,6 +15,7 @@ end = struct
         "    end\n"
 
     fun lexerCode grammar startName =
+        NipoParsers.parserCode grammar startName ^ "\n\n" ^
         driverCode startName
 end
 
