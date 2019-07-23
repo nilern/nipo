@@ -1,7 +1,7 @@
 (* TODO: External DSL *)
 (* TODO: Emit code instead of composing closures. *)
 (* TODO: LL(1) -> PLL(1) *)
-structure NipoParsers :> sig
+functor NipoParsers(Grammar: GRAMMAR) :> sig
     val matchCode: string
     val recognizerRulesCode: Grammar.grammar -> string -> string
     val parserCode: Grammar.grammar -> string -> string

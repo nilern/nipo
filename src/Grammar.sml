@@ -1,13 +1,16 @@
-structure Grammar = struct
-    structure Token = struct
-        type t = string
+signature GRAMMAR = sig
+    structure Token: LEXEME
 
-        fun toString token = token
+    datatype atom = Terminal of Token.t option
+                  | NonTerminal of string
 
-        val compare = String.compare
+    type grammar = (string * {atoms: atom list, action: string option} list) list
+end
 
-        val overlap = op=
-    end
+functor Grammar(Token: LEXEME) :> GRAMMAR
+    where type Token.t = Token.t
+= struct
+    structure Token = Token
 
     datatype atom = Terminal of Token.t option
                   | NonTerminal of string

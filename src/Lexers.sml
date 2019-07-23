@@ -1,10 +1,15 @@
 structure NipoLexers :> sig
+    structure Grammar: GRAMMAR where type Token.t = string
+
     val lexerCode: { lexerName: string
                    , tokenType: string
                    , rules: Grammar.grammar
                    , startRule: string
                    , whitespaceRule: string } -> string
 end = struct
+    structure Grammar = Grammar(Token)
+    structure Parsers = NipoParsers(Grammar)
+
     fun extractActions grammar startRule =
         let val actions = ref []
             val actionCount = ref 0
@@ -59,8 +64,8 @@ end = struct
             "    structure Input = Input\n" ^
             "    structure Token = Input.Token\n\n" ^
             "    type token = " ^ tokenType ^ "\n\n" ^
-            NipoParsers.matchCode ^
-            NipoParsers.recognizerRulesCode grammar startRule ^ "\n\n" ^
+            Parsers.matchCode ^
+            Parsers.recognizerRulesCode grammar startRule ^ "\n\n" ^
             actionTableCode actions ^ "\n" ^
             driverCode startRule whitespaceRule ^
             "end\n"

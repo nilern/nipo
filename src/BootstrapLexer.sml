@@ -1,4 +1,5 @@
 structure Lexers = NipoLexers
+structure Grammar = Lexers.Grammar
 datatype atom = datatype Grammar.atom
 
 val token = Terminal o SOME o (fn c => "#\"" ^ Char.toString c ^ "\"")
