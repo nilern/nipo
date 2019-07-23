@@ -1,29 +1,3 @@
-signature NIPO_TOKEN_SET = sig
-    include ORD_SET
-
-    val toString: set -> string
-end
-
-functor NipoTokenSet(Token: LEXEME) :> NIPO_TOKEN_SET where type item = Token.t = struct
-    structure Super = BinarySetFn(struct
-        open Token
-        type ord_key = t
-    end)
-    open Super 
-    fun toString tokens =
-        let val contents =
-                foldl (fn (token, SOME acc) => SOME (acc ^ ", " ^ Token.toString token)
-                        | (token, NONE) => SOME (Token.toString token))
-                      NONE tokens
-        in case contents
-           of SOME s => "{" ^ s ^ "}"
-            | NONE => "{}"
-        end
-end
-
-infixr 3 <|>
-infixr 4 <*>
-
 (* TODO: External DSL *)
 (* TODO: Emit code instead of composing closures. *)
 (* TODO: LL(1) -> PLL(1) *)
@@ -65,10 +39,10 @@ end = struct
     end
 
     structure StringMap = BinaryMapFn(type ord_key = string val compare = String.compare)
-    structure FirstSet = NipoTokenSet(NullableToken)
+    structure FirstSet = TokenSet(NullableToken)
     type first_set = FirstSet.set
     structure FollowSet = struct
-        structure Super = NipoTokenSet(Lookahead)
+        structure Super = TokenSet(Lookahead)
         open Super
 
         val fromFirstSet =

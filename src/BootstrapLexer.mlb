@@ -4,6 +4,7 @@ $(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb
 ann "allowSuccessorML true" in
     Lexeme.sml
     Grammar.sml
+    TokenSet.sml
     Parsers.sml
     Lexers.sml
     BootstrapLexer.sml
