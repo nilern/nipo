@@ -232,7 +232,9 @@ end = struct
 
     fun lookaheadPattern name ruleIndex lookaheads =
         if FollowSet.isEmpty lookaheads
-        then raise Fail ("Rule " ^ Int.toString ruleIndex ^ " of " ^ name ^ " has empty lookahead.")
+        (* HACK: We assume this can only happen in lexers: *)
+        (* FIXME: Ensure that there is only one of these and that it ends up last: *)
+        then "_"
         else String.concatWith " | " (List.map tokenPattern (FollowSet.listItems lookaheads))
 
     val atomCode =
