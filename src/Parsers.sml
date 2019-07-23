@@ -17,7 +17,13 @@ end = struct
              | (SOME _, NONE) => GREATER
              | (NONE, SOME _) => LESS
              | (NONE, NONE) => EQUAL
-            
+
+        val overlap =
+            fn (SOME token, SOME token') => Token.overlap (token, token')
+             | (SOME _, NONE) => false
+             | (NONE, SOME _) => false
+             | (NONE, NONE) => true
+
         val toString =
             fn SOME token => Token.toString token
              | NONE => "<EOF>"
@@ -32,6 +38,12 @@ end = struct
              | (Token _, Epsilon) => GREATER
              | (Epsilon, Token _) => LESS
              | (Epsilon, Epsilon) => EQUAL
+
+        val overlap =
+            fn (Token token, Token token') => Lookahead.overlap (token, token')
+             | (Token _, Epsilon) => true
+             | (Epsilon, Token _) => true
+             | (Epsilon, Epsilon) => true
 
         val toString =
             fn Token token => Lookahead.toString token
@@ -49,6 +61,13 @@ end = struct
             FirstSet.foldl (fn (NullableToken.Token token, followSet) => add (followSet, token)
                              | (NullableToken.Epsilon, followSet) => followSet)
                            empty
+
+        fun overlap (foSet, foSet') =
+            foldl (fn (lookahead, res) =>
+                       foldl (fn (lookahead', res) =>
+                                  res orelse Lookahead.overlap (lookahead, lookahead'))
+                             res foSet')
+                  false foSet
     end
     type follow_set = FollowSet.set
     type lookahead_set = follow_set

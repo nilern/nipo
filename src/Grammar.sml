@@ -5,6 +5,8 @@ structure Grammar = struct
         fun toString token = token
 
         val compare = String.compare
+
+        val overlap = op=
     end
 
     datatype atom = Terminal of Token.t option
