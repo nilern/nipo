@@ -34,7 +34,7 @@ end = struct
     fun driverCode startName whitespaceRule =
         "    fun next input =\n" ^
         "        ( " ^ whitespaceRule ^ " input\n" ^
-        "        ;  Option.map (fn _ =>\n" ^
+        "        ; Option.map (fn _ =>\n" ^
         "                          let val startPos = Input.pos input\n" ^
         "                              val startMark = Input.checkpoint input\n" ^
         "                              val actionIndex = " ^ startName ^ " input\n" ^
