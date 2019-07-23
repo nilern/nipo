@@ -1,17 +1,28 @@
 structure NipoLexers :> sig
-    val lexerCode: string -> string -> Grammar.grammar -> string -> string
+    val lexerCode: { lexerName: string
+                   , tokenType: string
+                   , rules: Grammar.grammar
+                   , startRule: string
+                   , whitespaceRule: string } -> string
 end = struct
-    fun extractActions grammar =
+    fun extractActions grammar startRule =
         let val actions = ref []
             val actionCount = ref 0
-            fun extractPredicteeActions {atoms, action} =
-                let val actionIndex = !actionCount
-                in actions := action :: !actions
-                 ; actionCount := actionIndex + 1
-                 ; {atoms, action = Int.toString actionIndex}
-                end
+            fun extractPredicteeActions name (predictee as {atoms, action}) =
+                case action
+                of SOME action =>
+                    let do if name <> startRule
+                           then raise Fail ( "Action code in non-start lexer rule " ^ name
+                                           ^ ": " ^ action )
+                           else ()
+                        val actionIndex = !actionCount
+                    in actions := action :: !actions
+                     ; actionCount := actionIndex + 1
+                     ; {atoms, action = SOME (Int.toString actionIndex)}
+                    end
+                 | NONE => predictee
             val grammar = List.map (fn (name, predictees) =>
-                                        (name, List.map extractPredicteeActions predictees))
+                                        (name, List.map (extractPredicteeActions name) predictees))
                                    grammar
         in {grammar, actions = List.rev (!actions)}
         end
@@ -20,10 +31,11 @@ end = struct
         "    val actions =\n" ^
         "        Vector.fromList [ " ^ String.concatWith "\n                        , " actions ^ " ]\n"
 
-    fun driverCode startName =
+    fun driverCode startName whitespaceRule =
         "    fun next input =\n" ^
         "        Option.map (fn _ =>\n" ^
-        "                        let val startPos = Input.pos input\n" ^
+        "                        let val _ = " ^ whitespaceRule ^ " input\n" ^
+        "                            val startPos = Input.pos input\n" ^
         "                            val startMark = Input.checkpoint input\n" ^
         "                            val actionIndex = " ^ startName ^ " input\n" ^
         "                            val endPos = Input.pos input\n" ^
@@ -37,9 +49,9 @@ end = struct
         "                        end)\n" ^
         "                   (Input.peek input)\n"
 
-    fun lexerCode name tokenType grammar startName =
-        let val {grammar, actions} = extractActions grammar
-        in  "functor " ^ name ^ "(Input: NIPO_LEXER_INPUT) :> NIPO_LEXER\n" ^
+    fun lexerCode {lexerName, tokenType, rules, startRule, whitespaceRule} =
+        let val {grammar, actions} = extractActions rules startRule
+        in  "functor " ^ lexerName ^ "(Input: NIPO_LEXER_INPUT) :> NIPO_LEXER\n" ^
             "    where type Input.stream = Input.stream\n" ^
             "    where type Input.checkpoint = Input.checkpoint\n" ^
             "    where type token = " ^ tokenType ^ "\n" ^
@@ -48,9 +60,9 @@ end = struct
             "    structure Token = Input.Token\n\n" ^
             "    type token = " ^ tokenType ^ "\n\n" ^
             NipoParsers.matchCode ^
-            NipoParsers.recognizerRulesCode grammar startName ^ "\n\n" ^
+            NipoParsers.recognizerRulesCode grammar startRule ^ "\n\n" ^
             actionTableCode actions ^ "\n" ^
-            driverCode startName ^
+            driverCode startRule whitespaceRule ^
             "end\n"
         end
 end

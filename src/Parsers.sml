@@ -79,7 +79,7 @@ end = struct
     type follow_set = FollowSet.set
     type lookahead_set = follow_set
 
-    type 'laset branch = {lookaheads: 'laset, productees: {atoms: atom list, action: string} list}
+    type 'laset branch = {lookaheads: 'laset, productees: {atoms: atom list, action: string option} list}
 
     fun predictionSet firstSet followSet =
         if FirstSet.member (firstSet, NullableToken.Epsilon)
@@ -201,7 +201,7 @@ end = struct
                             of SOME internalStartName =>
                                 StringMap.insert ( StringMap.empty, internalStartName
                                                  , [{lookaheads = (), productees = [{ atoms = [NonTerminal startName, Terminal NONE]
-                                                                                    , action = "startName" } ]}] )
+                                                                                    , action = SOME "startName" } ]}] )
                              | _ => StringMap.empty)
                            grammar
             val (grammar, fiSets) = firstSets grammar
@@ -230,8 +230,10 @@ end = struct
         fn SOME token => "SOME " ^ Token.toString token
          | NONE => "NONE"
 
-    fun lookaheadPattern lookaheads =
-        String.concatWith " | " (List.map tokenPattern (FollowSet.listItems lookaheads))
+    fun lookaheadPattern name ruleIndex lookaheads =
+        if FollowSet.isEmpty lookaheads
+        then raise Fail ("Rule " ^ Int.toString ruleIndex ^ " of " ^ name ^ " has empty lookahead.")
+        else String.concatWith " | " (List.map tokenPattern (FollowSet.listItems lookaheads))
 
     val atomCode =
         fn Terminal token => "match (" ^ tokenPattern token ^ ") input"
@@ -243,18 +245,25 @@ end = struct
          | atoms => "( " ^ String.concatWith "\n            ; " (List.map atomCode atoms) ^ " )"
 
     fun producteeCode {atoms, action} =
-        case atoms
-        of [] => action
-         | _ => "( " ^ String.concatWith "\n            ; " (List.map atomCode atoms @ [action]) ^ " )"
+        let val codes = List.map atomCode atoms
+            val codes = case action
+                        of SOME action => codes @ [action]
+                         | NONE => codes
+        in case codes
+           of [] => "()"
+            | [code] => code
+            | _ => "( " ^ String.concatWith "\n            ; " codes ^ " )"
+        end
 
-    fun branchCode {lookaheads, productees = [productee]} =
-        lookaheadPattern lookaheads ^ " =>\n            " ^ producteeCode productee
+    fun branchCode name (ruleIndex, {lookaheads, productees = [productee]}) =
+        lookaheadPattern name ruleIndex lookaheads ^ " =>\n            " ^ producteeCode productee
 
     (* FIXME: Detect conflicts *)
     fun ntCode name branches =
         "    and " ^ name ^ " input =\n"
             ^ "        case Input.peek input\n"
-            ^ "        of " ^ String.concatWith "\n         | " (List.map branchCode branches) ^ "\n"
+            ^ "        of " ^ String.concatWith "\n         | "
+                                                (Vector.foldr op:: [] (Vector.mapi (branchCode name) (Vector.fromList branches))) ^ "\n"
             ^ "         | lookahead =>\n"
             ^ "            raise Fail (\"unexpected \" ^ Token.lookaheadToString lookahead ^ \" in " ^ name ^ "\")"
 

@@ -10,6 +10,6 @@ structure Grammar = struct
     datatype atom = Terminal of Token.t option
                   | NonTerminal of string
 
-    type grammar = (string * {atoms: atom list, action: string} list) list
+    type grammar = (string * {atoms: atom list, action: string option} list) list
 end
 
