@@ -31,7 +31,7 @@ end = struct
         "                            val _ = Input.reset (input, startMark)\n" ^
         "                            val len = #index endPos - #index startPos\n" ^
         "                            (* Slightly breach abstraction to avoid recomputing `endPos`: *)\n" ^
-        "                            val recognizedPrefix = Input.Inner.inputN (Input.inner input, len)\n" ^
+        "                            val recognizedPrefix = Input.Inner.inputN (Input.toInner input, len)\n" ^
         "                            val _ = Input.reset (input, endMark)\n" ^
         "                        in Vector.sub (actions, actionIndex) (startPos, recognizedPrefix, endPos)\n" ^
         "                        end)\n" ^
@@ -42,6 +42,7 @@ end = struct
         in  "functor " ^ name ^ "(Input: NIPO_LEXER_INPUT) :> NIPO_LEXER\n" ^
             "    where type Input.stream = Input.stream\n" ^
             "    where type Input.checkpoint = Input.checkpoint\n" ^
+            "    where type token = " ^ tokenType ^ "\n" ^
             "= struct\n" ^
             "    structure Input = Input\n" ^
             "    structure Token = Input.Token\n\n" ^

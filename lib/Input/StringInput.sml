@@ -1,8 +1,10 @@
-structure NipoStringInput :> RESETABLE_NIPO_INPUT
-    where type stream = char VectorSlice.slice ref
-    where type Token.t = char
-    where type Token.vector = string
-= struct
+structure NipoStringInput :> sig
+    include RESETABLE_NIPO_INPUT
+        where type Token.t = char
+        where type Token.vector = string
+
+    val fromString: string -> stream
+end = struct
     type stream = char VectorSlice.slice ref
     type checkpoint = int
 
@@ -16,6 +18,8 @@ structure NipoStringInput :> RESETABLE_NIPO_INPUT
             fn SOME c => toString c
              | NONE => "EOF"
     end
+
+    val fromString = ref o VectorSlice.full
 
     fun peek (ref cs) =
         Option.map #1 (VectorSlice.getItem cs)

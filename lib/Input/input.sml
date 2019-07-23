@@ -34,6 +34,8 @@ signature NIPO_LEXER_INPUT = sig
         where type t = stream
 
     structure Inner: RESETABLE_NIPO_INPUT
-    val inner: stream -> Inner.stream
+    val toInner: stream -> Inner.stream
+
+    val fromInner: Inner.stream * Pos.t -> stream
 end
 

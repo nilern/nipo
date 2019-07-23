@@ -1,7 +1,7 @@
 .PHONY: all
 all: nipo
 
-nipo: main.mlb Lexeme.sml Grammar.sml Parsers.sml Lexers.sml SelfLexer.sml
+nipo: main.mlb Lexeme.sml Grammar.sml Parsers.sml Lexers.sml SelfLexer.sml main.sml
 	mlton -output nipo main.mlb
 
 SelfLexer.sml: BootstrapLexer

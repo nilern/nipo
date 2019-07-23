@@ -11,5 +11,8 @@ ann "allowSuccessorML true" in
     ../lib/Lexer.sml
     NipoTokens.sml
     SelfLexer.sml
+    ../lib/Input/StringInput.sml
+    ../lib/Input/LexerInput.sml
+    main.sml
 end
 

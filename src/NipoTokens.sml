@@ -4,5 +4,12 @@ structure NipoTokens = struct
                    | LBrace of Pos.t
                    | RBrace of Pos.t
                    | Semi of Pos.t
+
+    val toString =
+        fn Eq _ => "="
+         | Bar _ => "|"
+         | LBrace _ => "{"
+         | RBrace _ => "}"
+         | Semi _ => ";"
 end
 

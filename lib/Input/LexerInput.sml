@@ -1,7 +1,9 @@
 functor LexerInput(Inner: RESETABLE_NIPO_INPUT
     where type Token.t = char
     where type Token.vector = string
-) :> NIPO_LEXER_INPUT = struct
+) :> NIPO_LEXER_INPUT
+    where type Inner.stream = Inner.stream
+= struct
     type stream = {inner: Inner.stream, pos: Pos.t ref}
     type t = stream
     type checkpoint = {inner: Inner.checkpoint, pos: Pos.t}
@@ -9,8 +11,10 @@ functor LexerInput(Inner: RESETABLE_NIPO_INPUT
     structure Token = Inner.Token
 
     structure Inner = Inner
+
+    fun fromInner (inner, pos) = {inner = inner, pos = ref pos}
     
-    val inner: stream -> Inner.stream = #inner
+    val toInner: stream -> Inner.stream = #inner
 
     val peek: stream -> Token.t option = Inner.peek o #inner
 
