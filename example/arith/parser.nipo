@@ -1,4 +1,4 @@
-parser ArithParser LL(1) where
+parser ArithParser where
 
 tokens '+' { Token.Plus }
      | '*' { Token.Times }

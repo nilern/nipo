@@ -22,15 +22,24 @@ val grammar =
                 , {atoms = tokens "rules", action = SOME "NipoTokens.Rules o #1"}
                 , {atoms = tokens "start", action = SOME "NipoTokens.Start o #1"}
                 , {atoms = [NonTerminal "id"], action = SOME "NipoTokens.Id"}
+                , { atoms = [NonTerminal "escapedId"]
+                  , action = SOME "fn (s, cs, e) => NipoTokens.Id (s, String.substring (cs, 1, String.size cs - 2), e)" }
                 , {atoms = [token #"="], action = SOME "NipoTokens.Eq o #1"}
                 , {atoms = [token #"|"], action = SOME "NipoTokens.Bar o #1"}
-                , {atoms = [token #"{"], action = SOME "NipoTokens.LBrace o #1"}
-                , {atoms = [token #"}"], action = SOME "NipoTokens.RBrace o #1"}
+                , {atoms = [token #"{", NonTerminal "action", token #"}"]
+                  , action = SOME "fn (s, cs, e) => NipoTokens.Action (s, String.substring (cs, 1, String.size cs - 2), e)" }
                 , {atoms = [token #";"], action = SOME "NipoTokens.Semi o #1"} ])
     , ("id", [{atoms = [NonTerminal "alpha", NonTerminal "idTail"], action = NONE}])
     , ("idTail", [ {atoms = [NonTerminal "alpha", NonTerminal "idTail"], action = NONE}
                  , {atoms = [], action = NONE} ])
+    , ("escapedId", [{atoms = [token #"'", NonTerminal "freeIdContents", token #"'"], action = NONE}])
+    , ("freeIdContents", [ {atoms = [ Terminal (SOME (CharClass.Not (CharClass.Singleton #"'")))
+                                    , NonTerminal "freeIdContents" ], action = NONE}
+                         , {atoms = [], action = NONE} ])
     , ("alpha", [ {atoms = [Terminal (SOME (CharClass.Posix CharClass.Alpha))], action = NONE} ])
+    , ("action", [ {atoms = [ Terminal (SOME (CharClass.Not (CharClass.Singleton #"}")))
+                            , NonTerminal "action" ], action = NONE}
+                 , {atoms = [], action = NONE} ])
     , ("ws", [ {atoms = [NonTerminal "wsChar", NonTerminal "ws"], action = NONE}
              , {atoms = [], action = NONE} ])
     , ("wsChar", [ {atoms = [token #" "], action = NONE}

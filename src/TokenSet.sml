@@ -27,17 +27,19 @@ functor TokenSet(Token: LEXEME) :> TOKEN_SET where type item = Token.t = struct
     val requiresPred = exists (fn tc =>
                                    case Token.patternCode tc
                                    of Pattern _ => false
-                                    | Predicate _ => true)
+                                    | Predicate _ => true
+                                    | Default => false)
 
     fun predicateCode tokClasses lookahead =
         valOf (foldl (fn (tc, acc) =>
-                          case Token.patternCode tc
-                          of Predicate pred =>
-                              let val tcCond = pred lookahead
-                              in case acc
-                                 of SOME acc => SOME (acc ^ " orelse " ^ tcCond)
-                                  | NONE => SOME tcCond
-                              end)
+                          let val tcCond =
+                                  case Token.patternCode tc
+                                  of Predicate pred => pred lookahead
+                                   | Pattern pat => lookahead ^ " = " ^ pat
+                          in case acc
+                             of SOME acc => SOME (acc ^ " orelse " ^ tcCond)
+                              | NONE => SOME tcCond
+                          end)
                      NONE tokClasses)
 
     fun patCode tokClasses =

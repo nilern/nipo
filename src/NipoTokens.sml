@@ -10,17 +10,19 @@ structure NipoTokens = struct
         | RBrace of Pos.t
         | Semi of Pos.t
         | Id of Pos.t * string * Pos.t
+        | Action of Pos.t * string * Pos.t
 
     val toString =
-        fn Lexer _ => "lexer"
-         | Where _ => "where"
-         | Rules _ => "rules"
-         | Start _ => "start"
-         | Eq _ => "="
-         | Bar _ => "|"
-         | LBrace _ => "{"
-         | RBrace _ => "}"
-         | Semi _ => ";"
+        fn Lexer _ => "keyword lexer"
+         | Where _ => "keyword where"
+         | Rules _ => "keyword rules"
+         | Start _ => "keyword start"
+         | Eq _ => "operator ="
+         | Bar _ => "operator |"
+         | LBrace _ => "delimiter {"
+         | RBrace _ => "delimiter }"
+         | Semi _ => "terminator ;"
          | Id (_, name, _) => name
+         | Action (_, code, _) => "`" ^ code ^ "`"
 end
 

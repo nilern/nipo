@@ -4,10 +4,10 @@ rules
 
 start token
     = '+' { Token.Plus }
-    | '*' { Token.Times }
+    | '*' { Token.Times }
     | '(' { Token.LParen }
-    | ')' { Token.RParen }
-    | digits { Token.Num o valOf o Int.fromString }
+    | ')' { Token.RParen }
+    | digits { Token.Num o valOf o Int.fromString }
 
 digits
     = digit digits

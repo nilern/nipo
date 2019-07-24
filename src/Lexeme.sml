@@ -35,16 +35,21 @@ structure CharClass = struct
 
     datatype t = Singleton of char
                | Posix of posix
+               | Not of t
 
-    val toString =
+    val rec toString =
         fn Singleton c => "'" ^ Char.toString c ^ "'"
          | Posix Alpha => "[:alpha:]"
+         | Not cc => "[^" ^ toString cc ^ "]"
 
-    val compare = 
+    val rec compare = 
         fn (Singleton c, Singleton c') => Char.compare (c, c')
          | (Singleton _, Posix _) => LESS
          | (Posix _, Singleton _) => GREATER
          | (Posix Alpha, Posix Alpha) => EQUAL
+         | (Not cc, Not cc') => compare (cc, cc')
+         | (Not _, _) => GREATER
+         | (_, Not _) => LESS
 
     val overlap =
         fn (Singleton c, Singleton c') => c = c'
@@ -52,9 +57,13 @@ structure CharClass = struct
          | (Posix Alpha, Singleton c) => Char.isAlpha c
          | (Posix Alpha, Posix Alpha) => true
 
-    val patternCode =
+    val rec patternCode =
         fn Singleton c => Pattern ("#\"" ^ Char.toString c ^ "\"")
          | Posix Alpha => Predicate (fn lookahead => "Char.isAlpha " ^ lookahead)
+         | Not cc =>
+            (case patternCode cc
+             of Pattern pat => Predicate (fn lookahead => lookahead ^ " <> " ^ pat)
+              | Predicate pred => Predicate (fn lookahead => "not (" ^ pred lookahead ^ ")"))
 
     fun matchCode cc =
        case patternCode cc
