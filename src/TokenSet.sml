@@ -51,7 +51,7 @@ functor TokenSet(Token: LEXEME) :> TOKEN_SET where type item = Token.t = struct
 
     fun patternCode tokClasses =
         if isEmpty tokClasses
-        then Pattern "_" (* HACK *)
+        then Default (* HACK *)
         else if requiresPred tokClasses
              then Predicate (predicateCode tokClasses)
              else Pattern (patCode tokClasses)

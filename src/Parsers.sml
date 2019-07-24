@@ -253,6 +253,12 @@ end = struct
     val isPatternBranch =
         fn {lookaheads = Pattern _, ...} => true
          | {lookaheads = Predicate _, ...} => false
+         | {lookaheads = Default, ...} => false
+
+    val isPredicateBranch =
+        fn {lookaheads = Pattern _, ...} => false
+         | {lookaheads = Predicate _, ...} => true
+         | {lookaheads = Default, ...} => false
 
     val atomCode =
         fn Terminal token => Lookahead.matchCode token
@@ -293,12 +299,18 @@ end = struct
             val errorBody = 
                 "            raise Fail (\"unexpected \" ^ Token.lookaheadToString lookahead ^ \" in " ^ name ^ "\")"
             val (patternBranches, predBranches) = List.partition isPatternBranch branches
+            val (predBranches, defaultBranches) = List.partition isPredicateBranch predBranches
+            val defaultBranch =
+                case defaultBranches
+                of [] => errorBody
+                 | [{productees = [productee], ...}] => producteeCode productee
+                 | _ => raise Fail (name ^ " has multiple default branches")
         in "    and " ^ name ^ " input =\n"
            ^ "        case Input.peek input\n"
            ^ "        of " ^ String.concatWith "\n         | "
                                                (Vector.foldr op:: [] (Vector.mapi (branchCode name) (Vector.fromList patternBranches))) ^ "\n"
            ^ "         | lookahead =>\n"
-           ^ predicateBranchesCode predBranches errorBody
+           ^ predicateBranchesCode predBranches defaultBranch
         end
 
     fun rulesCode grammar =

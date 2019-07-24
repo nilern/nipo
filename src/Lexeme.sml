@@ -1,6 +1,7 @@
 structure BranchCond = struct
     datatype t = Pattern of string
                | Predicate of string -> string
+               | Default
 end
 
 signature LEXEME = sig
