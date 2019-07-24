@@ -6,10 +6,13 @@ functor NipoParsers(Grammar: GRAMMAR) :> sig
     val recognizerRulesCode: Grammar.grammar -> string -> string
     val parserCode: Grammar.grammar -> string -> string
 end = struct
+    open BranchCond
     structure Token = Grammar.Token
     datatype atom = datatype Grammar.atom
 
     structure Lookahead = struct
+        open BranchCond
+
         type t = Token.t option
 
         val compare =
@@ -27,6 +30,20 @@ end = struct
         val toString =
             fn SOME token => Token.toString token
              | NONE => "<EOF>"
+
+        val patternCode =
+            fn SOME token => 
+                (case Token.patternCode token
+                 of Pattern pat => Pattern ("SOME (" ^ pat ^ ")")
+                  | Predicate pred =>
+                     Predicate (fn lookahead =>
+                                    "isSome " ^ lookahead ^ " andalso " ^ pred lookahead))
+             | NONE => Pattern "NONE"
+
+        fun matchCode lookahead =
+            case patternCode lookahead
+            of Pattern pat => "match (" ^ pat ^ ") input"
+             | Predicate pred => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
     end
 
     structure NullableToken = struct
@@ -48,6 +65,14 @@ end = struct
         val toString =
             fn Token token => Lookahead.toString token
              | Epsilon => "<epsilon>"
+
+        val patternCode =
+            fn Token lookahead => Lookahead.patternCode lookahead
+             | Epsilon => BranchCond.Pattern "_"
+
+        val matchCode =
+            fn Token lookahead => Lookahead.matchCode lookahead
+             | Epsilon => "()"
     end
 
     structure StringMap = BinaryMapFn(type ord_key = string val compare = String.compare)
@@ -219,19 +244,12 @@ end = struct
         "                            ^ \" got \" ^ Token.lookaheadToString token' )\n" ^
         "        end"
 
-    val tokenPattern =
-        fn SOME token => "SOME " ^ Token.toString token
-         | NONE => "NONE"
-
-    fun lookaheadPattern name ruleIndex lookaheads =
-        if FollowSet.isEmpty lookaheads
-        (* HACK: We assume this can only happen in lexers: *)
-        (* FIXME: Ensure that there is only one of these and that it ends up last: *)
-        then "_"
-        else String.concatWith " | " (List.map tokenPattern (FollowSet.listItems lookaheads))
+    val isPatternBranch =
+        fn {lookaheads = Pattern _, ...} => true
+         | {lookaheads = Predicate _, ...} => false
 
     val atomCode =
-        fn Terminal token => "match (" ^ tokenPattern token ^ ") input"
+        fn Terminal token => Lookahead.matchCode token
          | NonTerminal name => name ^ " input"
 
     val seqCode =
@@ -250,17 +268,32 @@ end = struct
             | _ => "( " ^ String.concatWith "\n            ; " codes ^ " )"
         end
 
-    fun branchCode name (ruleIndex, {lookaheads, productees = [productee]}) =
-        lookaheadPattern name ruleIndex lookaheads ^ " =>\n            " ^ producteeCode productee
+    fun branchCode name (ruleIndex, {lookaheads = Pattern pat, productees = [productee]}) =
+        pat ^ " =>\n            " ^ producteeCode productee
+
+    fun predicateBranchesCode predBranches errorBody =
+        case predBranches
+        of {lookaheads = Predicate pred, productees = [productee]} :: predBranches =>
+            "            if " ^ pred "lookahead" ^ "\n" ^
+            "            then " ^ producteeCode productee ^ "\n" ^
+            "            else " ^ predicateBranchesCode predBranches errorBody
+         | [] => errorBody
 
     (* FIXME: Detect conflicts *)
     fun ntCode name branches =
-        "    and " ^ name ^ " input =\n"
-            ^ "        case Input.peek input\n"
-            ^ "        of " ^ String.concatWith "\n         | "
-                                                (Vector.foldr op:: [] (Vector.mapi (branchCode name) (Vector.fromList branches))) ^ "\n"
-            ^ "         | lookahead =>\n"
-            ^ "            raise Fail (\"unexpected \" ^ Token.lookaheadToString lookahead ^ \" in " ^ name ^ "\")"
+        let val branches = List.map (fn {lookaheads, productees} =>
+                                         {lookaheads = FollowSet.patternCode lookaheads, productees})
+                                    branches
+            val errorBody = 
+                "            raise Fail (\"unexpected \" ^ Token.lookaheadToString lookahead ^ \" in " ^ name ^ "\")"
+            val (patternBranches, predBranches) = List.partition isPatternBranch branches
+        in "    and " ^ name ^ " input =\n"
+           ^ "        case Input.peek input\n"
+           ^ "        of " ^ String.concatWith "\n         | "
+                                               (Vector.foldr op:: [] (Vector.mapi (branchCode name) (Vector.fromList patternBranches))) ^ "\n"
+           ^ "         | lookahead =>\n"
+           ^ predicateBranchesCode predBranches errorBody
+        end
 
     fun rulesCode grammar =
         StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar

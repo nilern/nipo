@@ -2,7 +2,7 @@ structure Lexers = NipoLexers
 structure Grammar = Lexers.Grammar
 datatype atom = datatype Grammar.atom
 
-val token = Terminal o SOME o (fn c => "#\"" ^ Char.toString c ^ "\"")
+val token = Terminal o SOME o CharClass.Singleton
 val tokens = List.map token o String.explode
 fun charsBetween (first, last) =
     let val firstCode = Char.ord first

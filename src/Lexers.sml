@@ -1,5 +1,6 @@
 structure NipoLexers :> sig
-    structure Grammar: GRAMMAR where type Token.t = string
+    structure Token: LEXEME where type t = CharClass.t
+    structure Grammar: GRAMMAR where type Token.t = Token.t
 
     val lexerCode: { lexerName: string
                    , tokenType: string
@@ -7,6 +8,7 @@ structure NipoLexers :> sig
                    , startRule: string
                    , whitespaceRule: string } -> string
 end = struct
+    structure Token = CharClass
     structure Grammar = Grammar(Token)
     structure Parsers = NipoParsers(Grammar)
 
