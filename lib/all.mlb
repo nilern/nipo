@@ -6,4 +6,5 @@ Input/StringInput.sml
 Input/StreamIOInput.sml
 Input/LexerInput.sml
 Lexer.sml
+Input/LexedInput.sml
 

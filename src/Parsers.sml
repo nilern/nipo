@@ -252,14 +252,14 @@ end = struct
         "        let val token' = Input.pop input\n" ^
         "        in  if token' = token\n" ^
         "            then ()\n" ^
-        "            else raise Fail ( \"expected \" ^ Token.lookaheadToString token\n" ^
-        "                            ^ \" got \" ^ Token.lookaheadToString token' )\n" ^
+        "            else raise Fail ( \"expected \" ^ Input.Token.lookaheadToString token\n" ^
+        "                            ^ \" got \" ^ Input.Token.lookaheadToString token' )\n" ^
         "        end\n\n" ^
         "    and matchPred pred input =\n" ^
         "        let val token' = Input.pop input\n" ^
         "        in  if pred token'\n" ^
         "            then ()\n" ^
-        "            else raise Fail (\"unexpected \" ^ Token.lookaheadToString token')\n" ^
+        "            else raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString token')\n" ^
         "        end"
 
     val isPatternBranch =
@@ -309,7 +309,7 @@ end = struct
                                          {lookaheads = FollowSet.patternCode lookaheads, productees})
                                     branches
             val errorBody = 
-                "            raise Fail (\"unexpected \" ^ Token.lookaheadToString lookahead ^ \" in " ^ name ^ "\")"
+                "            raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString lookahead ^ \" in " ^ name ^ "\")"
             val (patternBranches, predBranches) = List.partition isPatternBranch branches
             val (predBranches, defaultBranches) = List.partition isPredicateBranch predBranches
             val defaultBranch =

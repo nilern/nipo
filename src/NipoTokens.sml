@@ -12,6 +12,9 @@ structure NipoTokens = struct
         | Id of Pos.t * string * Pos.t
         | Action of Pos.t * string * Pos.t
 
+    type t = token
+    type vector = t vector
+
     val toString =
         fn Lexer _ => "keyword lexer"
          | Where _ => "keyword where"
@@ -24,5 +27,9 @@ structure NipoTokens = struct
          | Semi _ => "terminator ;"
          | Id (_, name, _) => name
          | Action (_, code, _) => "`" ^ code ^ "`"
+
+    val lookaheadToString =
+        fn SOME token => toString token
+         | NONE => "EOF"
 end
 

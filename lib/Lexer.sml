@@ -1,8 +1,7 @@
 signature NIPO_LEXER = sig
     structure Input: NIPO_LEXER_INPUT
+    structure Token: NIPO_TOKEN
 
-    type token
-
-    val next: Input.stream -> token option
+    val next: Input.stream -> Token.t option
 end
 

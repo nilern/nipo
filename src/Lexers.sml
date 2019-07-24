@@ -58,14 +58,16 @@ end = struct
 
     fun lexerCode {lexerName, tokenType, rules, startRule, whitespaceRule} =
         let val {grammar, actions} = extractActions rules startRule
-        in  "functor " ^ lexerName ^ "(Input: NIPO_LEXER_INPUT) :> NIPO_LEXER\n" ^
-            "    where type Input.stream = Input.stream\n" ^
-            "    where type Input.checkpoint = Input.checkpoint\n" ^
-            "    where type token = " ^ tokenType ^ "\n" ^
+        in  "functor " ^ lexerName ^ "(Args: sig\n" ^
+            "    structure Input: NIPO_LEXER_INPUT\n" ^
+            "    structure Token: NIPO_TOKEN where type t = " ^ tokenType ^ "\n" ^
+            "end) :> NIPO_LEXER\n" ^
+            "    where type Input.stream = Args.Input.stream\n" ^
+            "    where type Input.checkpoint = Args.Input.checkpoint\n" ^
+            "    where type Token.t = " ^ tokenType ^ "\n" ^
             "= struct\n" ^
-            "    structure Input = Input\n" ^
-            "    structure Token = Input.Token\n\n" ^
-            "    type token = " ^ tokenType ^ "\n\n" ^
+            "    structure Input = Args.Input\n" ^
+            "    structure Token = Args.Token\n\n" ^
             Parsers.matchCode ^
             Parsers.recognizerRulesCode grammar startRule ^ "\n\n" ^
             actionTableCode actions ^ "\n" ^

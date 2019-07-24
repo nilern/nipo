@@ -13,18 +13,25 @@ structure TextIOInput = NipoStreamIOInput(struct
     end
 end)
 structure LexerTextInput = LexerInput(TextIOInput)
-structure Lexer = NipoLexer(LexerTextInput)
+structure Lexer = NipoLexer(struct
+    structure Input = LexerTextInput
+    structure Token = NipoTokens
+end)
+
+structure TokenStream = NipoLexedInput(Lexer)
 
 val main =
     fn [filename] =>
-        let fun lexAll input =
-                case Lexer.next input
+        let fun lexAll tokens =
+                case TokenStream.pop tokens
                 of SOME token => 
                     ( print (NipoTokens.toString token ^ "\n")
-                    ; lexAll input )
+                    ; lexAll tokens )
                  | NONE => ()
             val input = TextIO.getInstream (TextIO.openIn filename)
-        in lexAll (LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default "CLI"))
+            val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default "CLI")
+            val tokens = TokenStream.tokenize lexerInput
+        in lexAll tokens
         end
 
 do main (CommandLine.arguments ())
