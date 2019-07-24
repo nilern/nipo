@@ -37,7 +37,7 @@ end = struct
                  of Pattern pat => Pattern ("SOME (" ^ pat ^ ")")
                   | Predicate pred =>
                      Predicate (fn lookahead =>
-                                    "isSome " ^ lookahead ^ " andalso " ^ pred lookahead))
+                                    "isSome " ^ lookahead ^ " andalso " ^ pred ("(valOf " ^ lookahead ^ ")")))
              | NONE => Pattern "NONE"
 
         fun matchCode lookahead =
@@ -242,6 +242,12 @@ end = struct
         "            then ()\n" ^
         "            else raise Fail ( \"expected \" ^ Token.lookaheadToString token\n" ^
         "                            ^ \" got \" ^ Token.lookaheadToString token' )\n" ^
+        "        end\n\n" ^
+        "    and matchPred pred input =\n" ^
+        "        let val token' = Input.pop input\n" ^
+        "        in  if pred token'\n" ^
+        "            then ()\n" ^
+        "            else raise Fail (\"unexpected \" ^ Token.lookaheadToString token')\n" ^
         "        end"
 
     val isPatternBranch =

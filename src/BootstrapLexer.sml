@@ -30,7 +30,7 @@ val grammar =
     , ("id", [{atoms = [NonTerminal "alpha", NonTerminal "idTail"], action = NONE}])
     , ("idTail", [ {atoms = [NonTerminal "alpha", NonTerminal "idTail"], action = NONE}
                  , {atoms = [], action = NONE} ])
-    , ("alpha", charsBetween (#"a", #"z") @ charsBetween (#"A", #"Z")) (* HACK: ASCII *)
+    , ("alpha", [ {atoms = [Terminal (SOME (CharClass.Posix CharClass.Alpha))], action = NONE} ])
     , ("ws", [ {atoms = [NonTerminal "wsChar", NonTerminal "ws"], action = NONE}
              , {atoms = [], action = NONE} ])
     , ("wsChar", [ {atoms = [token #" "], action = NONE}
