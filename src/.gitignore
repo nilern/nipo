@@ -1,4 +1,6 @@
 BootstrapLexer
 SelfLexer.sml
+BootstrapParser
+SelfParser.sml
 nipo
 
