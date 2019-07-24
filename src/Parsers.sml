@@ -31,6 +31,8 @@ end = struct
             fn SOME token => Token.toString token
              | NONE => "<EOF>"
 
+        val stopPatternCode = Token.stopPatternCode
+
         val patternCode =
             fn SOME token => 
                 (case Token.patternCode token
@@ -38,7 +40,7 @@ end = struct
                   | Predicate pred =>
                      Predicate (fn lookahead =>
                                     "isSome " ^ lookahead ^ " andalso " ^ pred ("(valOf " ^ lookahead ^ ")")))
-             | NONE => Pattern "NONE"
+             | NONE => stopPatternCode
 
         fun matchCode lookahead =
             case patternCode lookahead
@@ -69,6 +71,8 @@ end = struct
         val patternCode =
             fn Token lookahead => Lookahead.patternCode lookahead
              | Epsilon => BranchCond.Pattern "_"
+
+        val stopPatternCode = Lookahead.stopPatternCode
 
         val matchCode =
             fn Token lookahead => Lookahead.matchCode lookahead
@@ -165,9 +169,13 @@ end = struct
         in iterate (StringMap.mapi (fn _ => FirstSet.empty) grammar)
         end
 
-    fun followSets (grammar: first_set branch list StringMap.map) (fiSets: first_set StringMap.map)
+    fun followSets (grammar: first_set branch list StringMap.map) (fiSets: first_set StringMap.map) internalStartName
             : lookahead_set StringMap.map =
-        let fun changed sets sets' =
+        let val isStart = case internalStartName
+                          of SOME startName => (fn name => name = startName)
+                           | NONE => (fn _ => false)
+
+            fun changed sets sets' =
                 ( StringMap.appi (fn (name, set') =>
                                     let val set = StringMap.lookup (sets, name)
                                     in if FollowSet.isSubset (set', set)
@@ -204,7 +212,11 @@ end = struct
                    then iterate sets'
                    else sets'
                 end
-        in iterate (StringMap.mapi (fn _ => FollowSet.empty) grammar)
+        in iterate (StringMap.mapi (fn (name, _) =>
+                                        if isStart name
+                                        then FollowSet.empty
+                                        else FollowSet.singleton NONE)
+                                   grammar)
         end
 
     fun analyze grammar startName internalStartName =
@@ -223,7 +235,7 @@ end = struct
                              | _ => StringMap.empty)
                            grammar
             val (grammar, fiSets) = firstSets grammar
-            val foSets = followSets grammar fiSets
+            val foSets = followSets grammar fiSets internalStartName
             val grammar = StringMap.mapi (fn (name, branches) =>
                                               let val followSet = StringMap.lookup (foSets, name)
                                               in List.map (fn {lookaheads, productees} =>

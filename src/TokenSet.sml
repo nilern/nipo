@@ -47,15 +47,15 @@ functor TokenSet(Token: LEXEME) :> TOKEN_SET where type item = Token.t = struct
                           case Token.patternCode tc
                           of Pattern pat =>
                               (case acc
-                               of SOME acc => SOME (acc ^ " | " ^ pat)
-                                | NONE => SOME pat))
+                               of SOME (Pattern acc) => SOME (Pattern (acc ^ " | " ^ pat))
+                                | SOME Default => acc
+                                | NONE => SOME (Pattern pat))
+                           | Default => SOME Default)
                      NONE tokClasses)
 
     fun patternCode tokClasses =
-        if isEmpty tokClasses
-        then Default (* HACK *)
-        else if requiresPred tokClasses
-             then Predicate (predicateCode tokClasses)
-             else Pattern (patCode tokClasses)
+        if requiresPred tokClasses
+        then Predicate (predicateCode tokClasses)
+        else patCode tokClasses
 end
 

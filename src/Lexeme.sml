@@ -10,6 +10,7 @@ signature LEXEME = sig
     val compare: t * t -> order
     val overlap: t * t -> bool
     val patternCode: t -> BranchCond.t
+    val stopPatternCode: BranchCond.t
     val matchCode: t -> string
     val toString: t -> string
 end
@@ -24,6 +25,8 @@ structure Token :> LEXEME where type t = string = struct
     val overlap = op=
 
     fun patternCode token = BranchCond.Pattern (token ^ " _")
+
+    val stopPatternCode = BranchCond.Pattern "NONE"
 
     fun matchCode token = raise Fail "unimplemented"
 end
@@ -64,6 +67,8 @@ structure CharClass = struct
             (case patternCode cc
              of Pattern pat => Predicate (fn lookahead => lookahead ^ " <> " ^ pat)
               | Predicate pred => Predicate (fn lookahead => "not (" ^ pred lookahead ^ ")"))
+
+    val stopPatternCode = Default
 
     fun matchCode cc =
        case patternCode cc
