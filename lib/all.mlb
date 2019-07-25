@@ -1,10 +1,12 @@
 $(SML_LIB)/basis/basis.mlb
 
-Input/Pos.sml
-Input/input.sml
-Input/StringInput.sml
-Input/StreamIOInput.sml
-Input/LexerInput.sml
-Lexer.sml
-Input/LexedInput.sml
+ann "warnUnused true" in
+    Input/Pos.sml
+    Input/input.sml
+    Input/StringInput.sml
+    Input/StreamIOInput.sml
+    Input/LexerInput.sml
+    Lexer.sml
+    Input/LexedInput.sml
+end
 

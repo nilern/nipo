@@ -32,14 +32,16 @@ functor TokenSet(Token: LEXEME) :> TOKEN_SET where type item = Token.t = struct
 
     fun predicateCode tokClasses lookahead =
         valOf (foldl (fn (tc, acc) =>
-                          let val tcCond =
-                                  case Token.patternCode tc
-                                  of Predicate pred => pred lookahead
-                                   | Pattern pat => lookahead ^ " = " ^ pat
-                          in case acc
-                             of SOME acc => SOME (acc ^ " orelse " ^ tcCond)
-                              | NONE => SOME tcCond
-                          end)
+                          case Token.patternCode tc
+                          of Predicate pred =>
+                              (case acc
+                               of SOME acc => SOME (acc ^ " orelse " ^ pred lookahead)
+                                | NONE => SOME (pred lookahead))
+                           | Pattern pat =>
+                              (case acc
+                               of SOME acc => SOME (acc ^ " orelse " ^ lookahead ^ " = " ^ pat)
+                                | NONE => SOME (lookahead ^ " = " ^ pat))
+                           | Default => acc)
                      NONE tokClasses)
 
     fun patCode tokClasses =
@@ -48,8 +50,10 @@ functor TokenSet(Token: LEXEME) :> TOKEN_SET where type item = Token.t = struct
                           of Pattern pat =>
                               (case acc
                                of SOME (Pattern acc) => SOME (Pattern (acc ^ " | " ^ pat))
+                                | SOME (Predicate _) => raise Fail "unreachable"
                                 | SOME Default => acc
                                 | NONE => SOME (Pattern pat))
+                           | Predicate _ => raise Fail "unreachable"
                            | Default => SOME Default)
                      NONE tokClasses)
 

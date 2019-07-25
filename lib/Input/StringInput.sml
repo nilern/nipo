@@ -12,7 +12,6 @@ end = struct
         type t = char
         type vector = string
         
-        val compare = Char.compare
         fun toString c = Char.toString c
         val lookaheadToString =
             fn SOME c => toString c

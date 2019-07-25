@@ -18,5 +18,5 @@ BootstrapLexer: BootstrapLexer.mlb Lexeme.sml Grammar.sml TokenSet.sml Parsers.s
 
 .PHONY: clean
 clean:
-	rm -f BootstrapLexer SelfLexer.sml nipo
+	rm -f BootstrapLexer SelfLexer.sml BootstrapParser SelfParser.sml nipo
 

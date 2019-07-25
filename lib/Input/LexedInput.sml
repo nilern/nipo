@@ -17,14 +17,14 @@ end = struct
          ; res
         end
 
-    fun peek (stream as {buffer, inner}) =
+    fun peek (stream as {buffer, inner = _}) =
         case !buffer
         of lookahead as SOME _ => lookahead
          | NONE => (tryShift stream; !buffer)
 
-    fun pop (stream as {buffer, inner}) =
+    fun pop (stream as {buffer, inner = _}) =
         case !buffer
-        of lookahead as SOME _ => popBuffer buffer
+        of SOME _ => popBuffer buffer
          | NONE => (tryShift stream; popBuffer buffer)
 
     fun inputN _ = raise Fail "unimplemented"

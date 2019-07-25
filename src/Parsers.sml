@@ -46,7 +46,8 @@ end = struct
                  of Pattern pat => Pattern ("SOME (" ^ pat ^ ")")
                   | Predicate pred =>
                      Predicate (fn lookahead =>
-                                    "isSome " ^ lookahead ^ " andalso " ^ pred ("(valOf " ^ lookahead ^ ")")))
+                                    "isSome " ^ lookahead ^ " andalso " ^ pred ("(valOf " ^ lookahead ^ ")"))
+                  | Default => Default)
              | NONE => stopPatternCode
 
         val stopMatchCode = Token.stopMatchCode
@@ -249,15 +250,14 @@ end = struct
                            grammar
             val (grammar, fiSets) = firstSets grammar
             val foSets = followSets grammar fiSets internalStartName
-            val grammar = StringMap.mapi (fn (name, branches) =>
-                                              let val followSet = StringMap.lookup (foSets, name)
-                                              in List.map (fn {lookaheads, productees} =>
-                                                               { lookaheads = predictionSet lookaheads followSet
-                                                               , productees })
-                                                          branches
-                                              end)
-                                         grammar
-        in (grammar, fiSets)
+        in StringMap.mapi (fn (name, branches) =>
+                               let val followSet = StringMap.lookup (foSets, name)
+                               in List.map (fn {lookaheads, productees} =>
+                                                { lookaheads = predictionSet lookaheads followSet
+                                                , productees })
+                                           branches
+                               end)
+                         grammar
         end
 
     val matchCode =
@@ -322,6 +322,7 @@ end = struct
                   | SOME Matcher.EOF => "matchEOF input"
                   | NONE => "()")
              | NonTerminal name => name ^ " input"
+             | Named _ => raise Fail "unreachable"
         val rec atomStmts =
             fn atom as Terminal _ | atom as NonTerminal _ => [Expr (atomExpr atom)]
              | Named (name, atom) =>
@@ -329,6 +330,7 @@ end = struct
                 in case stmts
                    of Val (name', _) :: _ => Val (name, name') :: stmts
                     | Expr expr :: stmts => Val (name, expr) :: stmts
+                    | [] => raise Fail "unreachable"
                 end
     in  
         fun atomCode atom = List.map stmtToString (List.rev (atomStmts atom))
@@ -347,7 +349,7 @@ end = struct
                "            end"
         end
 
-    fun branchCode name (ruleIndex, {lookaheads = Pattern pat, productees = [productee]}) =
+    fun branchCode {lookaheads = Pattern pat, productees = [productee]} =
         pat ^ " =>\n            " ^ producteeCode productee
 
     fun predicateBranchesCode predBranches errorBody =
@@ -374,8 +376,7 @@ end = struct
                  | _ => raise Fail (name ^ " has multiple default branches")
         in "    and " ^ name ^ " input =\n"
            ^ "        case Input.peek input\n"
-           ^ "        of " ^ String.concatWith "\n         | "
-                                               (Vector.foldr op:: [] (Vector.mapi (branchCode name) (Vector.fromList patternBranches))) ^ "\n"
+           ^ "        of " ^ String.concatWith "\n         | " (List.map branchCode patternBranches) ^ "\n"
            ^ "         | lookahead =>\n"
            ^ predicateBranchesCode predBranches defaultBranch
         end
@@ -384,13 +385,13 @@ end = struct
         StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar
 
     fun recognizerRulesCode grammar startName =
-        let val (grammar, _) = analyze grammar startName NONE
+        let val grammar = analyze grammar startName NONE
         in rulesCode grammar
         end
 
     fun parserCode {parserName, tokenType, tokenCtors, support, grammar, startName} =
         let val internalStartName = "start__" ^ startName
-            val (grammar, fiSets) = analyze grammar startName (SOME internalStartName)
+            val grammar = analyze grammar startName (SOME internalStartName)
         in "functor " ^ parserName ^ "(Input: NIPO_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
            "    " ^ support ^ "\n\n" ^
            ctorPredicates tokenCtors ^ "\n\n" ^

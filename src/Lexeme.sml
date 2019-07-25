@@ -77,7 +77,8 @@ structure CharClass = struct
          | Not cc =>
             (case patternCode cc
              of Pattern pat => Predicate (fn lookahead => lookahead ^ " <> " ^ pat)
-              | Predicate pred => Predicate (fn lookahead => "not (" ^ pred lookahead ^ ")"))
+              | Predicate pred => Predicate (fn lookahead => "not (" ^ pred lookahead ^ ")")
+              | Default => Default)
 
     val stopPatternCode = Default
 
@@ -85,6 +86,7 @@ structure CharClass = struct
        case patternCode cc
        of Pattern pat => SOME (ByValue pat)
         | Predicate pred => SOME (ByPred pred)
+        | Default => NONE
 
     val stopMatchCode = NONE
 end
