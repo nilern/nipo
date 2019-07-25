@@ -12,6 +12,7 @@ signature LEXEME = sig
     val patternCode: t -> BranchCond.t
     val stopPatternCode: BranchCond.t
     val matchCode: t -> string
+    val stopMatchCode: string
     val toString: t -> string
 end
 
@@ -29,6 +30,8 @@ structure Token :> LEXEME where type t = string = struct
     val stopPatternCode = BranchCond.Pattern "NONE"
 
     fun matchCode token = raise Fail "unimplemented"
+
+    val stopMatchCode = "matchEOF input"
 end
 
 structure CharClass = struct
@@ -74,5 +77,7 @@ structure CharClass = struct
        case patternCode cc
        of Pattern pat => "match (" ^ pat ^ ") input"
         | Predicate pred => "matchPred " ^ pred "" ^ "input"
+
+    val stopMatchCode = "()"
 end
 

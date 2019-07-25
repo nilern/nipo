@@ -19,6 +19,7 @@ structure Lexer = NipoLexer(struct
 end)
 
 structure TokenStream = NipoLexedInput(Lexer)
+structure Parser = NipoParser(TokenStream)
 
 val main =
     fn [filename] =>
@@ -31,7 +32,11 @@ val main =
             val input = TextIO.getInstream (TextIO.openIn filename)
             val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default "CLI")
             val tokens = TokenStream.tokenize lexerInput
-        in lexAll tokens
+            do lexAll tokens
+            val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default "CLI")
+            val tokens = TokenStream.tokenize lexerInput
+        in Parser.start__parser tokens
+         ; ()
         end
 
 do main (CommandLine.arguments ())

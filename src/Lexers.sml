@@ -68,7 +68,8 @@ end = struct
             "= struct\n" ^
             "    structure Input = Args.Input\n" ^
             "    structure Token = Args.Token\n\n" ^
-            Parsers.matchCode ^
+            Parsers.matchCode ^ "\n\n" ^
+            Parsers.matchPredCode ^
             Parsers.recognizerRulesCode grammar startRule ^ "\n\n" ^
             actionTableCode actions ^ "\n" ^
             driverCode startRule whitespaceRule ^

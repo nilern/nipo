@@ -3,5 +3,6 @@
 - [ ] naming atoms for use in actions
 - [ ] Successfully parsing example grammar specs
 - [ ] Conflict detection
-- [ ] PLL
+- [ ] PLL (parse lvals!)
+- [ ] Sane backtraacking (parse patterns!)
 

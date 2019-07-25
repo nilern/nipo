@@ -16,6 +16,7 @@ ann "allowSuccessorML true" in
     ../lib/Input/StreamIOInput.sml
     ../lib/Input/LexerInput.sml
     ../lib/Input/LexedInput.sml
+    SelfParser.sml
     main.sml
 end
 

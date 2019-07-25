@@ -3,8 +3,11 @@
 (* TODO: LL(1) -> PLL(1) *)
 functor NipoParsers(Grammar: GRAMMAR) :> sig
     val matchCode: string
+    val matchPredCode: string
     val recognizerRulesCode: Grammar.grammar -> string -> string
-    val parserCode: Grammar.grammar -> string -> string
+    val parserCode: { parserName:  string
+                    , grammar: Grammar.grammar
+                    , startName: string } -> string
 end = struct
     open BranchCond
     structure Token = Grammar.Token
@@ -42,10 +45,15 @@ end = struct
                                     "isSome " ^ lookahead ^ " andalso " ^ pred ("(valOf " ^ lookahead ^ ")")))
              | NONE => stopPatternCode
 
+        val stopMatchCode = Token.stopMatchCode
+
         fun matchCode lookahead =
-            case patternCode lookahead
-            of Pattern pat => "match (" ^ pat ^ ") input"
-             | Predicate pred => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
+            case lookahead
+            of SOME _ => 
+                (case patternCode lookahead
+                 of Pattern pat => "match (" ^ pat ^ ") input"
+                  | Predicate pred => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input")
+             | NONE => stopMatchCode
     end
 
     structure NullableToken = struct
@@ -77,6 +85,8 @@ end = struct
         val matchCode =
             fn Token lookahead => Lookahead.matchCode lookahead
              | Epsilon => "()"
+
+        val stopMatchCode = Token.stopMatchCode
     end
 
     structure StringMap = BinaryMapFn(type ord_key = string val compare = String.compare)
@@ -231,7 +241,7 @@ end = struct
                             of SOME internalStartName =>
                                 StringMap.insert ( StringMap.empty, internalStartName
                                                  , [{lookaheads = (), productees = [{ atoms = [NonTerminal startName, Terminal NONE]
-                                                                                    , action = SOME "startName" } ]}] )
+                                                                                    , action = SOME startName } ]}] )
                              | _ => StringMap.empty)
                            grammar
             val (grammar, fiSets) = firstSets grammar
@@ -253,13 +263,24 @@ end = struct
         "        in  if token' = token\n" ^
         "            then ()\n" ^
         "            else raise Fail ( \"expected \" ^ Input.Token.lookaheadToString token\n" ^
-        "                            ^ \" got \" ^ Input.Token.lookaheadToString token' )\n" ^
-        "        end\n\n" ^
-        "    and matchPred pred input =\n" ^
+        "                            ^ \", got \" ^ Input.Token.lookaheadToString token' )\n" ^
+        "        end"
+
+    val matchPredCode =
+        "    fun matchPred pred input =\n" ^
         "        let val token' = Input.pop input\n" ^
         "        in  if pred token'\n" ^
         "            then ()\n" ^
         "            else raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString token')\n" ^
+        "        end"
+
+    val matchEOFCode =
+        "    fun matchEOF input =\n" ^
+        "        let val token' = Input.pop input\n" ^
+        "        in  case token'\n" ^
+        "            of NONE => ()\n" ^
+        "             | SOME _ => raise Fail ( \"expected \" ^ Input.Token.lookaheadToString NONE\n" ^
+        "                                    ^ \", got \" ^ Input.Token.lookaheadToString token' )\n" ^
         "        end"
 
     val isPatternBranch =
@@ -333,11 +354,14 @@ end = struct
         in rulesCode grammar
         end
 
-    fun parserCode grammar startName =
-        let val internalStartName = "start$" ^ startName
+    fun parserCode {parserName, grammar, startName} =
+        let val internalStartName = "start__" ^ startName
             val (grammar, fiSets) = analyze grammar startName (SOME internalStartName)
-        in matchCode
-           ^ rulesCode grammar
+        in "functor " ^ parserName ^ "(Input: NIPO_INPUT) = struct\n" ^
+           matchPredCode ^ "\n\n" ^
+           matchEOFCode ^
+           rulesCode grammar ^
+           "end"
         end
 end
 
