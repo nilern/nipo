@@ -91,3 +91,77 @@ structure CharClass = struct
     val stopMatchCode = NONE
 end
 
+functor Lookahead(Token: LEXEME) = struct
+    open BranchCond
+
+    type t = Token.t option
+
+    val compare =
+        fn (SOME token, SOME token') => Token.compare (token, token')
+         | (SOME _, NONE) => GREATER
+         | (NONE, SOME _) => LESS
+         | (NONE, NONE) => EQUAL
+
+    val overlap =
+        fn (SOME token, SOME token') => Token.overlap (token, token')
+         | (SOME _, NONE) => false
+         | (NONE, SOME _) => false
+         | (NONE, NONE) => true
+
+    val toString =
+        fn SOME token => Token.toString token
+         | NONE => "<EOF>"
+
+    val stopPatternCode = Token.stopPatternCode
+
+    val patternCode =
+        fn SOME token => 
+            (case Token.patternCode token
+             of Pattern pat => Pattern ("SOME (" ^ pat ^ ")")
+              | Predicate pred =>
+                 Predicate (fn lookahead =>
+                                "isSome " ^ lookahead ^ " andalso " ^ pred ("(valOf " ^ lookahead ^ ")"))
+              | Default => Default)
+         | NONE => stopPatternCode
+
+    val stopMatchCode = Token.stopMatchCode
+
+    fun matchCode lookahead =
+        case lookahead
+        of SOME token => Token.matchCode token
+         | NONE => stopMatchCode
+end
+
+functor NullableToken(Lookahead: LEXEME) = struct
+    datatype t = Token of Lookahead.t
+               | Epsilon
+
+    val compare =
+        fn (Token token, Token token') => Lookahead.compare (token, token')
+         | (Token _, Epsilon) => GREATER
+         | (Epsilon, Token _) => LESS
+         | (Epsilon, Epsilon) => EQUAL
+
+    val overlap =
+        fn (Token token, Token token') => Lookahead.overlap (token, token')
+         | (Token _, Epsilon) => true
+         | (Epsilon, Token _) => true
+         | (Epsilon, Epsilon) => true
+
+    val toString =
+        fn Token token => Lookahead.toString token
+         | Epsilon => "<epsilon>"
+
+    val patternCode =
+        fn Token lookahead => Lookahead.patternCode lookahead
+         | Epsilon => BranchCond.Pattern "_"
+
+    val stopPatternCode = Lookahead.stopPatternCode
+
+    val matchCode =
+        fn Token lookahead => Lookahead.matchCode lookahead
+         | Epsilon => NONE
+
+    val stopMatchCode = Token.stopMatchCode
+end
+
