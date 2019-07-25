@@ -5,11 +5,14 @@ functor NipoParsers(Grammar: GRAMMAR) :> sig
     val matchCode: string
     val matchPredCode: string
     val recognizerRulesCode: Grammar.grammar -> string -> string
-    val parserCode: { parserName:  string
+    val parserCode: { parserName: string
+                    , tokenType: string
+                    , support: string
                     , grammar: Grammar.grammar
                     , startName: string } -> string
 end = struct
     open BranchCond
+    open Matcher
     structure Token = Grammar.Token
     datatype atom = datatype Grammar.atom
 
@@ -49,10 +52,12 @@ end = struct
 
         fun matchCode lookahead =
             case lookahead
-            of SOME _ => 
-                (case patternCode lookahead
-                 of Pattern pat => "match (" ^ pat ^ ") input"
-                  | Predicate pred => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input")
+            of SOME token =>
+                Option.map (fn ByValue const => ByValue ("SOME (" ^ const ^ ")")
+                             | ByPred pred => 
+                                ByPred (fn lookahead =>
+                                            "isSome " ^ lookahead ^ " andalso " ^ pred ("(valOf " ^ lookahead ^ ")")))
+                           (Token.matchCode token)
              | NONE => stopMatchCode
     end
 
@@ -84,7 +89,7 @@ end = struct
 
         val matchCode =
             fn Token lookahead => Lookahead.matchCode lookahead
-             | Epsilon => "()"
+             | Epsilon => NONE
 
         val stopMatchCode = Token.stopMatchCode
     end
@@ -294,7 +299,12 @@ end = struct
          | {lookaheads = Default, ...} => false
 
     val atomCode =
-        fn Terminal token => Lookahead.matchCode token
+        fn Terminal token => 
+            (case Lookahead.matchCode token
+             of SOME (Matcher.ByValue const) => "match (" ^ const ^ ") input"
+              | SOME (Matcher.ByPred pred) => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
+              | SOME Matcher.EOF => "matchEOF input"
+              | NONE => "()")
          | NonTerminal name => name ^ " input"
 
     val seqCode =
@@ -354,10 +364,11 @@ end = struct
         in rulesCode grammar
         end
 
-    fun parserCode {parserName, grammar, startName} =
+    fun parserCode {parserName, tokenType, support, grammar, startName} =
         let val internalStartName = "start__" ^ startName
             val (grammar, fiSets) = analyze grammar startName (SOME internalStartName)
-        in "functor " ^ parserName ^ "(Input: NIPO_INPUT) = struct\n" ^
+        in "functor " ^ parserName ^ "(Input: NIPO_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
+           "    " ^ support ^ "\n\n" ^
            matchPredCode ^ "\n\n" ^
            matchEOFCode ^
            rulesCode grammar ^

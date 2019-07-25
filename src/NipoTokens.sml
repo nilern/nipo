@@ -1,6 +1,7 @@
 structure NipoTokens = struct
     datatype token
         = Lexer of Pos.t
+        | Parser of Pos.t
         | Where of Pos.t
         | Rules of Pos.t
         | Start of Pos.t
@@ -15,8 +16,11 @@ structure NipoTokens = struct
     type t = token
     type vector = t vector
 
+    val isParser = fn Parser _ => true | _ => false
+
     val toString =
         fn Lexer _ => "keyword lexer"
+         | Parser _ => "keyword parser"
          | Where _ => "keyword where"
          | Rules _ => "keyword rules"
          | Start _ => "keyword start"

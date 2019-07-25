@@ -18,6 +18,7 @@ fun charsBetween (first, last) =
 
 val grammar =
     [ ("token", [ {atoms = tokens "lexer", action = SOME "NipoTokens.Lexer o #1"}
+                , {atoms = tokens "parser", action = SOME "NipoTokens.Parser o #1"}
                 , {atoms = tokens "where", action = SOME "NipoTokens.Where o #1"}
                 , {atoms = tokens "rules", action = SOME "NipoTokens.Rules o #1"}
                 , {atoms = tokens "start", action = SOME "NipoTokens.Start o #1"}

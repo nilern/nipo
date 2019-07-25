@@ -4,6 +4,12 @@ structure BranchCond = struct
                | Default
 end
 
+structure Matcher = struct
+    datatype t = ByValue of string
+               | ByPred of string -> string
+               | EOF
+end
+
 signature LEXEME = sig
     type t
 
@@ -11,8 +17,8 @@ signature LEXEME = sig
     val overlap: t * t -> bool
     val patternCode: t -> BranchCond.t
     val stopPatternCode: BranchCond.t
-    val matchCode: t -> string
-    val stopMatchCode: string
+    val matchCode: t -> Matcher.t option
+    val stopMatchCode: Matcher.t option
     val toString: t -> string
 end
 
@@ -29,13 +35,15 @@ structure Token :> LEXEME where type t = string = struct
 
     val stopPatternCode = BranchCond.Pattern "NONE"
 
-    fun matchCode token = raise Fail "unimplemented"
+    fun matchCode token =
+        SOME (Matcher.ByPred (fn lookahead => "is" ^ token ^ " " ^ lookahead))
 
-    val stopMatchCode = "matchEOF input"
+    val stopMatchCode = SOME Matcher.EOF
 end
 
 structure CharClass = struct
     open BranchCond
+    open Matcher
 
     datatype posix = Alpha
 
@@ -75,9 +83,9 @@ structure CharClass = struct
 
     fun matchCode cc =
        case patternCode cc
-       of Pattern pat => "match (" ^ pat ^ ") input"
-        | Predicate pred => "matchPred " ^ pred "" ^ "input"
+       of Pattern pat => SOME (ByValue pat)
+        | Predicate pred => SOME (ByPred pred)
 
-    val stopMatchCode = "()"
+    val stopMatchCode = NONE
 end
 
