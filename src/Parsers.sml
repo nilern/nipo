@@ -7,6 +7,7 @@ functor NipoParsers(Grammar: GRAMMAR) :> sig
     val recognizerRulesCode: Grammar.grammar -> string -> string
     val parserCode: { parserName: string
                     , tokenType: string
+                    , tokenCtors: string list
                     , support: string
                     , grammar: Grammar.grammar
                     , startName: string } -> string
@@ -52,12 +53,7 @@ end = struct
 
         fun matchCode lookahead =
             case lookahead
-            of SOME token =>
-                Option.map (fn ByValue const => ByValue ("SOME (" ^ const ^ ")")
-                             | ByPred pred => 
-                                ByPred (fn lookahead =>
-                                            "isSome " ^ lookahead ^ " andalso " ^ pred ("(valOf " ^ lookahead ^ ")")))
-                           (Token.matchCode token)
+            of SOME token => Token.matchCode token
              | NONE => stopMatchCode
     end
 
@@ -129,6 +125,7 @@ end = struct
     fun atomFirstSet fiSets =
         fn Terminal token => FirstSet.singleton (NullableToken.Token token)
          | NonTerminal name => StringMap.lookup (fiSets, name)
+         | Named (_, inner) => atomFirstSet fiSets inner
 
     fun producteeFirstSet fiSets {atoms, action = _} =
         let val rec atomsFirstSet =
@@ -208,7 +205,8 @@ end = struct
                    | NonTerminal name =>
                       let val prev = StringMap.lookup (sets', name)
                       in StringMap.insert (sets', name, FollowSet.union (prev, followSet))
-                      end )
+                      end
+                   | Named (_, inner) => (* HACK: *) #2 (atomIteration (inner, (followSet, sets'))) )
 
             fun producteeIteration followSet (productee, sets') =
                 #2 (List.foldr atomIteration (followSet, sets') (#atoms productee))
@@ -264,29 +262,39 @@ end = struct
 
     val matchCode =
         "    fun match token input =\n" ^
-        "        let val token' = Input.pop input\n" ^
-        "        in  if token' = token\n" ^
-        "            then ()\n" ^
-        "            else raise Fail ( \"expected \" ^ Input.Token.lookaheadToString token\n" ^
-        "                            ^ \", got \" ^ Input.Token.lookaheadToString token' )\n" ^
-        "        end"
+        "        case Input.pop input\n" ^
+        "        of SOME token' =>\n" ^
+        "            if token' = token\n" ^
+        "            then token'\n" ^
+        "            else raise Fail ( \"expecfed \" ^ Input.Token.toString token\n" ^
+        "                            ^ \", got \" ^ Input.Token.toString token' )\n" ^
+        "         | NONE =>\n" ^
+        "            raise Fail ( \"expected \" ^ Input.Token.toString token\n" ^
+        "                       ^ \", got \" ^ Input.Token.lookaheadToString NONE )"
 
     val matchPredCode =
         "    fun matchPred pred input =\n" ^
-        "        let val token' = Input.pop input\n" ^
-        "        in  if pred token'\n" ^
-        "            then ()\n" ^
-        "            else raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString token')\n" ^
-        "        end"
+        "        case Input.pop input\n" ^
+        "        of SOME token' =>\n" ^
+        "            if pred token'\n" ^
+        "            then token'\n" ^
+        "            else raise Fail (\"unexpected \" ^ Input.Token.toString token')\n" ^
+        "         | NONE =>\n" ^
+        "            raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString NONE)"
 
     val matchEOFCode =
         "    fun matchEOF input =\n" ^
-        "        let val token' = Input.pop input\n" ^
-        "        in  case token'\n" ^
-        "            of NONE => ()\n" ^
-        "             | SOME _ => raise Fail ( \"expected \" ^ Input.Token.lookaheadToString NONE\n" ^
-        "                                    ^ \", got \" ^ Input.Token.lookaheadToString token' )\n" ^
-        "        end"
+        "        case Input.pop input\n" ^
+        "        of NONE => ()\n" ^
+        "         | SOME token' =>\n" ^
+        "            raise Fail ( \"expected \" ^ Input.Token.lookaheadToString NONE\n" ^
+        "                       ^ \", got \" ^ Input.Token.toString token' )"
+
+    fun ctorPredicateDef ctor =
+        "val is" ^ ctor ^ " = fn " ^ ctor ^ " _ => true | _ => false"
+
+    fun ctorPredicates tokenCtors =
+        "    " ^ String.concatWith "\n    " (List.map ctorPredicateDef tokenCtors)
 
     val isPatternBranch =
         fn {lookaheads = Pattern _, ...} => true
@@ -298,29 +306,45 @@ end = struct
          | {lookaheads = Predicate _, ...} => true
          | {lookaheads = Default, ...} => false
 
-    val atomCode =
-        fn Terminal token => 
-            (case Lookahead.matchCode token
-             of SOME (Matcher.ByValue const) => "match (" ^ const ^ ") input"
-              | SOME (Matcher.ByPred pred) => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
-              | SOME Matcher.EOF => "matchEOF input"
-              | NONE => "()")
-         | NonTerminal name => name ^ " input"
+    datatype stmt = Val of string * string
+                  | Expr of string
 
-    val seqCode =
-        fn [] => "()"
-         | [atom] => atomCode atom
-         | atoms => "( " ^ String.concatWith "\n            ; " (List.map atomCode atoms) ^ " )"
+    val stmtToString =
+        fn Val (name, expr) => "val " ^ name ^ " = " ^ expr
+         | Expr expr => "val _ = " ^ expr
+
+    local
+        val atomExpr =
+            fn Terminal token => 
+                (case Lookahead.matchCode token
+                 of SOME (Matcher.ByValue const) => "match (" ^ const ^ ") input"
+                  | SOME (Matcher.ByPred pred) => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
+                  | SOME Matcher.EOF => "matchEOF input"
+                  | NONE => "()")
+             | NonTerminal name => name ^ " input"
+        val rec atomStmts =
+            fn atom as Terminal _ | atom as NonTerminal _ => [Expr (atomExpr atom)]
+             | Named (name, atom) =>
+                let val stmts = atomStmts atom
+                in case stmts
+                   of Val (name', _) :: _ => Val (name, name') :: stmts
+                    | Expr expr :: stmts => Val (name, expr) :: stmts
+                end
+    in  
+        fun atomCode atom = List.map stmtToString (List.rev (atomStmts atom))
+    end
 
     fun producteeCode {atoms, action} =
-        let val codes = List.map atomCode atoms
-            val codes = case action
-                        of SOME action => codes @ [action]
-                         | NONE => codes
-        in case codes
-           of [] => "()"
-            | [code] => code
-            | _ => "( " ^ String.concatWith "\n            ; " codes ^ " )"
+        let val stmts = List.concat (List.map atomCode atoms)
+            val expr = case action
+                       of SOME action => action
+                        | NONE => "()"
+        in case stmts
+           of [] => expr
+            | _ =>
+               "let " ^ String.concatWith "\n                " stmts ^ "\n" ^
+               "            in " ^ expr ^ "\n" ^
+               "            end"
         end
 
     fun branchCode name (ruleIndex, {lookaheads = Pattern pat, productees = [productee]}) =
@@ -364,11 +388,12 @@ end = struct
         in rulesCode grammar
         end
 
-    fun parserCode {parserName, tokenType, support, grammar, startName} =
+    fun parserCode {parserName, tokenType, tokenCtors, support, grammar, startName} =
         let val internalStartName = "start__" ^ startName
             val (grammar, fiSets) = analyze grammar startName (SOME internalStartName)
         in "functor " ^ parserName ^ "(Input: NIPO_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
            "    " ^ support ^ "\n\n" ^
+           ctorPredicates tokenCtors ^ "\n\n" ^
            matchPredCode ^ "\n\n" ^
            matchEOFCode ^
            rulesCode grammar ^

@@ -16,7 +16,9 @@ structure NipoTokens = struct
     type t = token
     type vector = t vector
 
-    val isParser = fn Parser _ => true | _ => false
+    val tokenChars =
+         fn Id (_, cs, _) => cs
+          | Action (_, cs, _) => cs
 
     val toString =
         fn Lexer _ => "keyword lexer"

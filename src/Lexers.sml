@@ -9,7 +9,7 @@ structure NipoLexers :> sig
                    , whitespaceRule: string } -> string
 end = struct
     structure Token = CharClass
-    structure Grammar = Grammar(Token)
+    structure Grammar = LexerGrammar
     structure Parsers = NipoParsers(Grammar)
 
     fun extractActions grammar startRule =
