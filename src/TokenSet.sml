@@ -5,6 +5,14 @@ signature TOKEN_SET = sig
     val patternCode: set -> BranchCond.t
 end
 
+signature FOLLOW_SET = sig
+    include TOKEN_SET
+    structure FirstSet: TOKEN_SET
+
+    val fromFirstSet: FirstSet.set -> set
+    val overlap: set * set -> bool
+end
+
 functor TokenSet(Token: LEXEME) :> TOKEN_SET where type item = Token.t = struct
     open BranchCond
 
@@ -61,5 +69,32 @@ functor TokenSet(Token: LEXEME) :> TOKEN_SET where type item = Token.t = struct
         if requiresPred tokClasses
         then Predicate (predicateCode tokClasses)
         else patCode tokClasses
+end
+
+functor FollowSet(Args: sig
+    structure Lookahead: LEXEME
+    structure NullableToken: NULLABLE_LEXEME where type non_nullable = Lookahead.t
+    structure FirstSet: TOKEN_SET where type item = NullableToken.t
+end) :> FOLLOW_SET
+    where type FirstSet.set = Args.FirstSet.set
+    where type item = Args.Lookahead.t
+= struct
+    structure Lookahead = Args.Lookahead
+    structure NullableToken = Args.NullableToken
+    structure FirstSet = Args.FirstSet
+    structure Super = TokenSet(Lookahead)
+    open Super
+
+    val fromFirstSet =
+        FirstSet.foldl (fn (NullableToken.Token token, followSet) => add (followSet, token)
+                         | (NullableToken.Epsilon, followSet) => followSet)
+                       empty
+
+    fun overlap (foSet, foSet') =
+        foldl (fn (lookahead, res) =>
+                   foldl (fn (lookahead', res) =>
+                              res orelse Lookahead.overlap (lookahead, lookahead'))
+                         res foSet')
+              false foSet
 end
 

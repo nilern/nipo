@@ -1,5 +1,20 @@
-structure Lexers = NipoLexers
-structure Grammar = Lexers.Grammar
+structure Token = CharClass
+structure Grammar = Grammar(Token)
+structure Lexers = NipoLexers(struct
+    structure Token = Token
+    structure Grammar = Grammar
+    structure Parsers = NipoParsers(struct
+        structure Grammar = Grammar
+        structure Lookahead = Lookahead(Token)
+        structure NullableToken = NullableToken(Lookahead)
+        structure FirstSet = TokenSet(NullableToken)
+        structure FollowSet = FollowSet(struct
+            structure Lookahead = Lookahead
+            structure NullableToken = NullableToken
+            structure FirstSet = FirstSet
+        end)
+    end)
+end)
 datatype atom = datatype Grammar.atom
 
 val token = Terminal o SOME o CharClass.Singleton

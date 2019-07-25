@@ -1,5 +1,5 @@
-structure NipoLexers :> sig
-    structure Token: LEXEME where type t = CharClass.t
+signature LEXERS = sig
+    structure Token: LEXEME
     structure Grammar: GRAMMAR where type Token.t = Token.t
 
     val lexerCode: { lexerName: string
@@ -7,10 +7,19 @@ structure NipoLexers :> sig
                    , rules: Grammar.grammar
                    , startRule: string
                    , whitespaceRule: string } -> string
-end = struct
-    structure Token = CharClass
-    structure Grammar = LexerGrammar
-    structure Parsers = NipoParsers(Grammar)
+end
+
+functor NipoLexers(Args: sig
+    structure Token: LEXEME where type t = CharClass.t
+    structure Grammar: GRAMMAR where type Token.t = Token.t
+    structure Parsers: PARSERS where type Grammar.atom = Grammar.atom
+end) :> LEXERS
+    where type Token.t = Args.Token.t
+    where type Grammar.atom = Args.Grammar.atom
+= struct
+    structure Token = Args.Token
+    structure Grammar = Args.Grammar
+    structure Parsers = Args.Parsers
 
     fun extractActions grammar startRule =
         let val actions = ref []

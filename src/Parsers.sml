@@ -1,6 +1,8 @@
-(* TODO: External DSL *)
-(* TODO: LL(1) -> PLL(1) *)
-functor NipoParsers(Grammar: GRAMMAR) :> sig
+structure StringMap = BinaryMapFn(type ord_key = string val compare = String.compare)
+
+signature PARSERS = sig
+    structure Grammar: GRAMMAR
+
     val matchCode: string
     val matchPredCode: string
     val recognizerRulesCode: Grammar.grammar -> string -> string
@@ -10,34 +12,29 @@ functor NipoParsers(Grammar: GRAMMAR) :> sig
                     , support: string
                     , grammar: Grammar.grammar
                     , startName: string } -> string
-end = struct
+end
+
+(* TODO: External DSL *)
+(* TODO: LL(1) -> PLL(1) *)
+functor NipoParsers(Args: sig
+    structure Grammar: GRAMMAR
+    structure Lookahead: LEXEME where type t = Grammar.Token.t option
+    structure NullableToken: NULLABLE_LEXEME where type non_nullable = Lookahead.t
+    structure FirstSet: TOKEN_SET where type item = NullableToken.t
+    structure FollowSet: FOLLOW_SET
+        where type item = Lookahead.t
+        where type FirstSet.set = FirstSet.set
+end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
     open BranchCond
     open Matcher
+    structure Grammar = Args.Grammar
     structure Token = Grammar.Token
     datatype atom = datatype Grammar.atom
-
-    structure Lookahead = Lookahead (Token)
-    structure NullableToken = NullableToken(Lookahead)
-
-    structure StringMap = BinaryMapFn(type ord_key = string val compare = String.compare)
-    structure FirstSet = TokenSet(NullableToken)
+    structure Lookahead = Args.Lookahead
+    structure NullableToken = Args.NullableToken
+    structure FirstSet = Args.FirstSet
     type first_set = FirstSet.set
-    structure FollowSet = struct
-        structure Super = TokenSet(Lookahead)
-        open Super
-
-        val fromFirstSet =
-            FirstSet.foldl (fn (NullableToken.Token token, followSet) => add (followSet, token)
-                             | (NullableToken.Epsilon, followSet) => followSet)
-                           empty
-
-        fun overlap (foSet, foSet') =
-            foldl (fn (lookahead, res) =>
-                       foldl (fn (lookahead', res) =>
-                                  res orelse Lookahead.overlap (lookahead, lookahead'))
-                             res foSet')
-                  false foSet
-    end
+    structure FollowSet = Args.FollowSet
     type follow_set = FollowSet.set
     type lookahead_set = follow_set
 

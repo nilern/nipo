@@ -22,6 +22,20 @@ signature LEXEME = sig
     val toString: t -> string
 end
 
+signature NULLABLE_LEXEME = sig
+    type non_nullable
+    datatype t = Token of non_nullable
+               | Epsilon
+
+    val compare: t * t -> order
+    val overlap: t * t -> bool
+    val patternCode: t -> BranchCond.t
+    val stopPatternCode: BranchCond.t
+    val matchCode: t -> Matcher.t option
+    val stopMatchCode: Matcher.t option
+    val toString: t -> string
+end
+
 structure Token :> LEXEME where type t = string = struct
     type t = string
 
@@ -133,7 +147,8 @@ functor Lookahead(Token: LEXEME) = struct
 end
 
 functor NullableToken(Lookahead: LEXEME) = struct
-    datatype t = Token of Lookahead.t
+    type non_nullable = Lookahead.t
+    datatype t = Token of non_nullable
                | Epsilon
 
     val compare =
@@ -162,6 +177,6 @@ functor NullableToken(Lookahead: LEXEME) = struct
         fn Token lookahead => Lookahead.matchCode lookahead
          | Epsilon => NONE
 
-    val stopMatchCode = Token.stopMatchCode
+    val stopMatchCode = Lookahead.stopMatchCode
 end
 
