@@ -1,10 +1,5 @@
 parser ArithParser where
 
-tokens '+' { Token.Plus }
-     | '*' { Token.Times }
-     | '(' { Token.LParen }
-     | ')' { Token.RParen }
-
 rules
 
 start expr = term terms { foldl op+ factor factors }

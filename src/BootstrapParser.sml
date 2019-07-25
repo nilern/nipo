@@ -8,11 +8,12 @@ fun namedNt name = Named (name, NonTerminal name)
 val grammar =
     [ ("parser", [ {atoms = [Named ("parser", NonTerminal "properParser")], action = SOME "parser"}
                  , {atoms = [Named ("lexer", NonTerminal "lexer")], action = SOME "lexer"} ])
-    , ("properParser", [{ atoms = [token "Parser", Named ("parserName", token "Id"), token "Where"]
-                        , action = SOME "parserName" }])
+    , ("properParser", [{ atoms = [ token "Parser", Named ("parserName", token "Id"), token "Where"
+                                  , token "Rules", namedNt "rules" ]
+                        , action = SOME "{name = parserName, rules = rules}" }])
     , ("lexer", [{ atoms = [ token "Lexer", Named ("lexerName", token "Id"), token "Where"
                            , token "Rules", Named ("rules", NonTerminal "rules") ]
-                 , action = SOME "lexerName" }])
+                 , action = SOME "{name = lexerName, rules = rules}" }])
     , ("rules", [{ atoms = [ Named ("starter", NonTerminal "startRule")
                            , Named ("others", NonTerminal "auxRules") ]
                  , action = SOME "{startRule = #1 starter, rules = starter :: others}" }])
