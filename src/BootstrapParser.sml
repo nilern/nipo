@@ -27,10 +27,12 @@ val grammar =
                  , {atoms = [Named ("lexer", NonTerminal "lexer")], action = SOME "InputGrammar.Lexer lexer"} ])
     , ("properParser", [{ atoms = [ token "Parser", Named ("parserName", token "Id"), token "Where"
                                   , token "Rules", namedNt "rules" ]
-                        , action = SOME "{parserName = tokenChars parserName, rules = #rules rules, startRule = #startRule rules}" }])
+                        , action = SOME ( "{parserName = tokenChars parserName, rules = #rules rules, startRule = #startRule rules"
+                                        ^ ", support = \"\", tokenCtors = [], tokenType = \"\"}" ) }])
     , ("lexer", [{ atoms = [ token "Lexer", Named ("lexerName", token "Id"), token "Where"
                            , token "Rules", Named ("rules", NonTerminal "rules") ]
-                 , action = SOME "{lexerName = tokenChars lexerName, rules = #rules rules, startRule = #startRule rules}" }])
+                 , action = SOME ( "{lexerName = tokenChars lexerName, rules = #rules rules, startRule = #startRule rules"
+                                 ^ ", tokenType = \"\", whitespaceRule = \"\"}" ) }])
     , ("rules", [{ atoms = [ Named ("starter", NonTerminal "startRule")
                            , Named ("others", NonTerminal "auxRules") ]
                  , action = SOME "{startRule = #1 starter, rules = starter :: others}" }])
