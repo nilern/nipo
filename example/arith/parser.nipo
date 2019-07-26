@@ -2,19 +2,22 @@ parser ArithParser where
 
 rules
 
-start expr = term terms { foldl op+ factor factors }
+start expr = term terms { foldl op+ factor factors };
 
 terms
     = '+' term terms { term :: terms }
     |                { [] }
+    ;
 
-term = factor factors { foldl op* factor factors }
+term = factor factors { foldl op* factor factors };
 
 factors
     = '*' factor factors { factor :: factors }
     |                    { [] }
+    ;
 
 factor
     = '(' expr ')' { expr }
     | DIGIT        { DIGIT }
+    ;
 

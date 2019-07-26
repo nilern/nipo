@@ -31,21 +31,25 @@ val grammar =
                      , action = SOME "rule :: rules" }
                    , { atoms = [], action = SOME "[]" } ])
     , ("startRule", [{atoms = [token "Start", Named ("rule", NonTerminal "rule")], action = SOME "rule"}])
-    , ("rule", [{ atoms = [Named ("name", token "Id"), token "Eq", Named ("productees", NonTerminal "productees")]
+    , ("rule", [{ atoms = [Named ("name", token "Id"), token "Eq", Named ("productees", NonTerminal "productees"), token "Semi"]
                 , action = SOME "(name, productees)" }])
-    , ("productees", [ { atoms = [Named ("productee", NonTerminal "productee"), token "Bar", Named ("productees", NonTerminal "productees")]
+    , ("productees", [ { atoms = [Named ("productee", NonTerminal "productee"), Named ("productees", NonTerminal "producteesTail")]
                        , action = SOME "productee :: productees" }
                      , {atoms = [], action = SOME "[]"} ])
-    , ("productee", [{ atoms = [namedNt "atoms", Named ("action", token "Action")]
-                     , action = SOME "{atoms = atoms, action = SOME action}" }])
+    , ("producteesTail", [ {atoms = [token "Bar", namedNt "productees"], action = SOME "productees"}
+                         , {atoms = [], action = SOME "[]"} ])
+    , ("productee", [{ atoms = [namedNt "atoms", namedNt "optAction"]
+                     , action = SOME "{atoms = atoms, action = optAction}" }])
     , ("atoms", [ {atoms = [namedNt "atom", namedNt "atoms"], action = SOME "atom :: atoms"}
                 , {atoms = [], action = SOME "[]"} ])
-    , ("atom", [{atoms = [Named ("atom", token "Id")], action = SOME "LexerGrammar.NonTerminal (tokenChars atom)"}]) ]
+    , ("atom", [{atoms = [Named ("atom", token "Id")], action = SOME "LexerGrammar.NonTerminal (tokenChars atom)"}])
+    , ("optAction", [ {atoms = [Named ("action", token "Action")], action = SOME "SOME action"}
+                    , {atoms = [], action = SOME "NONE"} ]) ]
 
 val _ = print (Parsers.parserCode { parserName = "NipoParser"
                                   , tokenType = "NipoTokens.t"
                                   , tokenCtors = [ "Parser", "Lexer", "Id", "Where", "Rules"
-                                                 , "Start", "Eq", "Bar", "Action" ]
+                                                 , "Start", "Eq", "Bar", "Action", "Semi" ]
                                   , support = "open NipoTokens"
                                   , grammar = grammar
                                   , startName = "parser" })

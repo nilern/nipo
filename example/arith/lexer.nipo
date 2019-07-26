@@ -8,10 +8,12 @@ start token
     | '(' { Token.LParen }
     | ')' { Token.RParen }
     | digits { Token.Num o valOf o Int.fromString }
+    ;
 
 digits
     = digit digits
-    | digit;
+    | digit
+    ;
 
 digit
     = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';

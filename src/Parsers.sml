@@ -185,6 +185,8 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
                          grammar
         end
 
+    (* FIXME: Error messages in these match routines give position after token: *)
+
     val matchCode =
         "    fun match token input =\n" ^
         "        case Input.pop input\n" ^
