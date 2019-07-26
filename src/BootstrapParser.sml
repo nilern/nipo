@@ -16,8 +16,8 @@ val token = Terminal o SOME
 fun namedNt name = Named (name, NonTerminal name)
 
 val grammar =
-    [ ("parser", [ {atoms = [Named ("parser", NonTerminal "properParser")], action = SOME "parser"}
-                 , {atoms = [Named ("lexer", NonTerminal "lexer")], action = SOME "lexer"} ])
+    [ ("parser", [ {atoms = [Named ("parser", NonTerminal "properParser")], action = SOME "InputGrammar.Parser parser"}
+                 , {atoms = [Named ("lexer", NonTerminal "lexer")], action = SOME "InputGrammar.Lexer lexer"} ])
     , ("properParser", [{ atoms = [ token "Parser", Named ("parserName", token "Id"), token "Where"
                                   , token "Rules", namedNt "rules" ]
                         , action = SOME "{name = parserName, rules = rules}" }])

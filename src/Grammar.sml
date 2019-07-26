@@ -23,3 +23,22 @@ end
 structure LexerGrammar = Grammar(CharClass)
 structure ParserGrammar = Grammar(Token)
 
+structure InputGrammar = struct
+    type lexer = { lexerName: string
+                 , tokenType: string
+                 , rules: LexerGrammar.grammar
+                 , startRule: string
+                 , whitespaceRule: string }
+
+    type parser = { parserName: string
+                  , tokenType: string
+                  , tokenCtors: string list
+                  , support: string
+                  , rules: ParserGrammar.grammar
+                  , startRule: string }
+
+    datatype t
+        = Lexer of lexer
+        | Parser of parser
+end
+

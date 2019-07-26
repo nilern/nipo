@@ -6,12 +6,7 @@ signature PARSERS = sig
     val matchCode: string
     val matchPredCode: string
     val recognizerRulesCode: Grammar.grammar -> string -> string
-    val parserCode: { parserName: string
-                    , tokenType: string
-                    , tokenCtors: string list
-                    , support: string
-                    , grammar: Grammar.grammar
-                    , startName: string } -> string
+    val parserCode: InputGrammar.parser -> string
 end
 
 (* TODO: External DSL *)
@@ -24,7 +19,7 @@ functor NipoParsers(Args: sig
     structure FollowSet: FOLLOW_SET
         where type item = Lookahead.t
         where type FirstSet.set = FirstSet.set
-end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
+end) :> PARSERS where type Grammar.atom = Args.Grammar.atom = struct
     open BranchCond
     open Matcher
     structure Grammar = Args.Grammar
@@ -110,7 +105,7 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
     fun followSets (grammar: first_set branch list StringMap.map) (fiSets: first_set StringMap.map) internalStartName
             : lookahead_set StringMap.map =
         let val isStart = case internalStartName
-                          of SOME startName => (fn name => name = startName)
+                          of SOME startRule => (fn name => name = startRule)
                            | NONE => (fn _ => false)
 
             fun changed sets sets' =
@@ -158,7 +153,7 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
                                    grammar)
         end
 
-    fun analyze grammar startName internalStartName =
+    fun analyze grammar startRule internalStartName =
         let val grammar =
                 List.foldl (fn ((name, productees), grammar) =>
                                 StringMap.insert ( grammar, name
@@ -169,8 +164,8 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
                            (case internalStartName
                             of SOME internalStartName =>
                                 StringMap.insert ( StringMap.empty, internalStartName
-                                                 , [{lookaheads = (), productees = [{ atoms = [NonTerminal startName, Terminal NONE]
-                                                                                    , action = SOME startName } ]}] )
+                                                 , [{lookaheads = (), productees = [{ atoms = [NonTerminal startRule, Terminal NONE]
+                                                                                    , action = SOME startRule } ]}] )
                              | _ => StringMap.empty)
                            grammar
             val (grammar, fiSets) = firstSets grammar
@@ -317,14 +312,14 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
     fun rulesCode grammar =
         StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar
 
-    fun recognizerRulesCode grammar startName =
-        let val grammar = analyze grammar startName NONE
+    fun recognizerRulesCode grammar startRule =
+        let val grammar = analyze grammar startRule NONE
         in rulesCode grammar
         end
 
-    fun parserCode {parserName, tokenType, tokenCtors, support, grammar, startName} =
-        let val internalStartName = "start__" ^ startName
-            val grammar = analyze grammar startName (SOME internalStartName)
+    fun parserCode {parserName, tokenType, tokenCtors, support, rules, startRule} =
+        let val internalStartName = "start__" ^ startRule
+            val grammar = analyze rules startRule (SOME internalStartName)
         in "functor " ^ parserName ^ "(Input: NIPO_PARSER_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
            "    " ^ support ^ "\n\n" ^
            ctorPredicates tokenCtors ^ "\n\n" ^
