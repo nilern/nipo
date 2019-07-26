@@ -34,10 +34,10 @@ val grammar =
                  , {atoms = [Named ("lexer", NonTerminal "lexer")], action = SOME "InputGrammar.Lexer lexer"} ])
     , ("properParser", [{ atoms = [ token "Parser", Named ("parserName", token "Id"), token "Where"
                                   , token "Rules", namedNt "rules" ]
-                        , action = SOME "{name = parserName, rules = rules}" }])
+                        , action = SOME "{parserName = tokenChars parserName, rules = #rules rules, startRule = #startRule rules}" }])
     , ("lexer", [{ atoms = [ token "Lexer", Named ("lexerName", token "Id"), token "Where"
                            , token "Rules", Named ("rules", NonTerminal "rules") ]
-                 , action = SOME "{name = lexerName, rules = rules}" }])
+                 , action = SOME "{lexerName = tokenChars lexerName, rules = #rules rules, startRule = #startRule rules}" }])
     , ("rules", [{ atoms = [ Named ("starter", NonTerminal "startRule")
                            , Named ("others", NonTerminal "auxRules") ]
                  , action = SOME "{startRule = #1 starter, rules = starter :: others}" }])
@@ -46,7 +46,7 @@ val grammar =
                    , { atoms = [], action = SOME "[]" } ])
     , ("startRule", [{atoms = [token "Start", Named ("rule", NonTerminal "rule")], action = SOME "rule"}])
     , ("rule", [{ atoms = [Named ("name", token "Id"), token "Eq", Named ("productees", NonTerminal "productees"), token "Semi"]
-                , action = SOME "(name, productees)" }])
+                , action = SOME "(tokenChars name, productees)" }])
     , ("productees", [ { atoms = [Named ("productee", NonTerminal "productee"), Named ("productees", NonTerminal "producteesTail")]
                        , action = SOME "productee :: productees" }
                      , {atoms = [], action = SOME "[]"} ])
@@ -57,7 +57,7 @@ val grammar =
     , ("atoms", [ {atoms = [namedNt "atom", namedNt "atoms"], action = SOME "atom :: atoms"}
                 , {atoms = [], action = SOME "[]"} ])
     , ("atom", [{atoms = [Named ("atom", token "Id")], action = SOME "LexerGrammar.NonTerminal (tokenChars atom)"}])
-    , ("optAction", [ {atoms = [Named ("action", token "Action")], action = SOME "SOME action"}
+    , ("optAction", [ {atoms = [Named ("action", token "Action")], action = SOME "SOME (tokenChars action)"}
                     , {atoms = [], action = SOME "NONE"} ]) ]
 
 val _ = print (Parsers.parserCode { parserName = "NipoParser"
