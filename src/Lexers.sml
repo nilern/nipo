@@ -7,7 +7,9 @@ end
 
 functor NipoLexers(Args: sig
     structure Token: LEXEME where type t = CharClass.t
-    structure Grammar: GRAMMAR where type Token.t = Token.t
+    structure Grammar: GRAMMAR
+        where type Token.t = Token.t
+        where type atom = LexerGrammar.atom
     structure Parsers: PARSERS where type Grammar.atom = Grammar.atom
 end) :> LEXERS
     where type Token.t = Args.Token.t

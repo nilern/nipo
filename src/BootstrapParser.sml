@@ -1,14 +1,28 @@
 structure Grammar = ParserGrammar
-structure Parsers = NipoParsers(struct
+structure Analyzed = AnalyzedGrammar(Grammar)
+structure Lookahead = Lookahead(Grammar.Token)
+structure NullableToken = NullableToken(Lookahead)
+structure FirstSet = TokenSet(NullableToken)
+structure FollowSet = FollowSet(struct
+    structure Lookahead = Lookahead
+    structure NullableToken = NullableToken
+    structure FirstSet = FirstSet
+end)
+structure Analysis = GrammarAnalysis(struct
     structure Grammar = Grammar
-    structure Lookahead = Lookahead(Grammar.Token)
-    structure NullableToken = NullableToken(Lookahead)
-    structure FirstSet = TokenSet(NullableToken)
-    structure FollowSet = FollowSet(struct
-        structure Lookahead = Lookahead
-        structure NullableToken = NullableToken
-        structure FirstSet = FirstSet
-    end)
+    structure Analyzed = Analyzed
+    structure Lookahead = Lookahead
+    structure NullableToken = NullableToken
+    structure FirstSet = FirstSet
+    structure FollowSet = FollowSet
+end)
+structure Parsers = ProperParsers(struct
+    structure Grammar = Grammar
+    structure Lookahead = Lookahead
+    structure NullableToken = NullableToken
+    structure FirstSet = FirstSet
+    structure FollowSet = FollowSet
+    structure Analysis = Analysis
 end)
 datatype atom = datatype Grammar.atom
 
@@ -51,6 +65,6 @@ val _ = print (Parsers.parserCode { parserName = "NipoParser"
                                   , tokenCtors = [ "Parser", "Lexer", "Id", "Where", "Rules"
                                                  , "Start", "Eq", "Bar", "Action", "Semi" ]
                                   , support = "open NipoTokens"
-                                  , grammar = grammar
-                                  , startName = "parser" })
+                                  , rules = grammar
+                                  , startRule = "parser" })
 

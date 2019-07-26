@@ -42,3 +42,15 @@ structure InputGrammar = struct
         | Parser of parser
 end
 
+signature ANALYZED_GRAMMAR = sig
+    type atom
+    type 'laset branch = {lookaheads: 'laset, productees: {atoms: atom list, action: string option} list}
+    type 'laset grammar = (string * 'laset branch list) list
+end
+
+functor AnalyzedGrammar(Grammar: GRAMMAR) :> ANALYZED_GRAMMAR where type atom = Grammar.atom = struct
+    type atom = Grammar.atom
+    type 'laset branch = {lookaheads: 'laset, productees: {atoms: atom list, action: string option} list}
+    type 'laset grammar = (string * 'laset branch list) list
+end
+

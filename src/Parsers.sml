@@ -1,28 +1,31 @@
 structure StringMap = BinaryMapFn(type ord_key = string val compare = String.compare)
 
-signature PARSERS = sig
+signature GRAMMAR_ANALYSIS = sig
     structure Grammar: GRAMMAR
+    structure Analyzed: ANALYZED_GRAMMAR where type atom = Grammar.atom
+    structure LookaheadSet: TOKEN_SET
 
-    val matchCode: string
-    val matchPredCode: string
-    val recognizerRulesCode: Grammar.grammar -> string -> string
-    val parserCode: InputGrammar.parser -> string
+    val analyze: Grammar.grammar -> string -> string option
+              -> LookaheadSet.set Analyzed.branch list StringMap.map
 end
 
-(* TODO: External DSL *)
-(* TODO: LL(1) -> PLL(1) *)
-functor NipoParsers(Args: sig
+functor GrammarAnalysis(Args: sig
     structure Grammar: GRAMMAR
+    structure Analyzed: ANALYZED_GRAMMAR where type atom = Grammar.atom
     structure Lookahead: LEXEME where type t = Grammar.Token.t option
     structure NullableToken: NULLABLE_LEXEME where type non_nullable = Lookahead.t
     structure FirstSet: TOKEN_SET where type item = NullableToken.t
     structure FollowSet: FOLLOW_SET
         where type item = Lookahead.t
         where type FirstSet.set = FirstSet.set
-end) :> PARSERS where type Grammar.atom = Args.Grammar.atom = struct
+end) :> GRAMMAR_ANALYSIS
+    where type Grammar.atom = Args.Grammar.atom
+    where type LookaheadSet.set = Args.FollowSet.set
+= struct
     open BranchCond
     open Matcher
     structure Grammar = Args.Grammar
+    structure Analyzed = Args.Analyzed
     structure Token = Grammar.Token
     datatype atom = datatype Grammar.atom
     structure Lookahead = Args.Lookahead
@@ -30,10 +33,9 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom = struct
     structure FirstSet = Args.FirstSet
     type first_set = FirstSet.set
     structure FollowSet = Args.FollowSet
+    structure LookaheadSet = FollowSet
     type follow_set = FollowSet.set
     type lookahead_set = follow_set
-
-    type 'laset branch = {lookaheads: 'laset, productees: {atoms: atom list, action: string option} list}
 
     fun predictionSet firstSet followSet =
         if FirstSet.member (firstSet, NullableToken.Epsilon)
@@ -66,7 +68,7 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom = struct
                    FirstSet.empty
                    (List.map (producteeFirstSet fiSets) productees)
 
-    fun firstSets (grammar: unit branch list StringMap.map): first_set branch list StringMap.map * first_set StringMap.map =
+    fun firstSets (grammar: unit Analyzed.branch list StringMap.map): first_set Analyzed.branch list StringMap.map * first_set StringMap.map =
         let fun branchIteration sets {lookaheads = _, productees} =
                 {lookaheads = branchFirstSet sets productees, productees}
 
@@ -102,7 +104,7 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom = struct
         in iterate (StringMap.mapi (fn _ => FirstSet.empty) grammar)
         end
 
-    fun followSets (grammar: first_set branch list StringMap.map) (fiSets: first_set StringMap.map) internalStartName
+    fun followSets (grammar: first_set Analyzed.branch list StringMap.map) (fiSets: first_set StringMap.map) internalStartName
             : lookahead_set StringMap.map =
         let val isStart = case internalStartName
                           of SOME startRule => (fn name => name = startRule)
@@ -179,7 +181,51 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom = struct
                                end)
                          grammar
         end
+end
 
+signature PARSERS_ARGS = sig
+    structure Grammar: GRAMMAR
+    structure Lookahead: LEXEME where type t = Grammar.Token.t option
+    structure NullableToken: NULLABLE_LEXEME where type non_nullable = Lookahead.t
+    structure FirstSet: TOKEN_SET where type item = NullableToken.t
+    structure FollowSet: FOLLOW_SET
+        where type item = Lookahead.t
+        where type FirstSet.set = FirstSet.set
+    structure Analysis: GRAMMAR_ANALYSIS
+        where type LookaheadSet.set = FollowSet.set
+        where type Grammar.atom = Grammar.atom
+end
+
+signature PARSERS = sig
+    structure Grammar: GRAMMAR
+    structure Analyzed: ANALYZED_GRAMMAR where type atom = Grammar.atom
+    structure LookaheadSet: TOKEN_SET where type item = Grammar.Token.t option
+
+    val matchCode: string
+    val matchPredCode: string
+    val recognizerRulesCode: Grammar.grammar -> string -> string
+    val rulesCode: LookaheadSet.set Analyzed.branch list StringMap.map -> string
+end
+
+functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
+    where type Grammar.atom = Args.Grammar.atom
+    where type LookaheadSet.set = Args.Analysis.LookaheadSet.set
+= struct
+    open BranchCond
+    open Matcher
+    structure Grammar = Args.Grammar
+    structure Analyzed = Args.Analysis.Analyzed
+    structure Token = Grammar.Token
+    datatype atom = datatype Grammar.atom
+    structure Lookahead = Args.Lookahead
+    structure NullableToken = Args.NullableToken
+    structure FirstSet = Args.FirstSet
+    type first_set = FirstSet.set
+    structure FollowSet = Args.FollowSet
+    structure LookaheadSet = FollowSet
+    type follow_set = FollowSet.set
+    structure Analysis = Args.Analysis
+    
     (* FIXME: Error messages in these match routines give position after token: *)
 
     val matchCode =
@@ -207,21 +253,6 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom = struct
         "         | NONE =>\n" ^
         "            raise Fail ( \"unexpected \" ^ Input.Token.lookaheadToString NONE" ^
         "                       ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n"
-
-    val matchEOFCode =
-        "    fun matchEOF input =\n" ^
-        "        case Input.pop input\n" ^
-        "        of NONE => ()\n" ^
-        "         | SOME token' =>\n" ^
-        "            raise Fail ( \"expected \" ^ Input.Token.lookaheadToString NONE\n" ^
-        "                       ^ \", got \" ^ Input.Token.toString token'" ^
-        "                       ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n"
-
-    fun ctorPredicateDef ctor =
-        "val is" ^ ctor ^ " = fn " ^ ctor ^ " _ => true | _ => false"
-
-    fun ctorPredicates tokenCtors =
-        "    " ^ String.concatWith "\n    " (List.map ctorPredicateDef tokenCtors)
 
     val isPatternBranch =
         fn {lookaheads = Pattern _, ...} => true
@@ -313,13 +344,34 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom = struct
         StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar
 
     fun recognizerRulesCode grammar startRule =
-        let val grammar = analyze grammar startRule NONE
+        let val grammar = Analysis.analyze grammar startRule NONE
         in rulesCode grammar
         end
+end
+
+functor ProperParsers(Args: PARSERS_ARGS) = struct
+    structure Analysis = Args.Analysis
+    structure Parsers = NipoParsers(Args)
+    open Parsers
+
+    fun ctorPredicateDef ctor =
+        "val is" ^ ctor ^ " = fn " ^ ctor ^ " _ => true | _ => false"
+
+    fun ctorPredicates tokenCtors =
+        "    " ^ String.concatWith "\n    " (List.map ctorPredicateDef tokenCtors)
+
+    val matchEOFCode =
+        "    fun matchEOF input =\n" ^
+        "        case Input.pop input\n" ^
+        "        of NONE => ()\n" ^
+        "         | SOME token' =>\n" ^
+        "            raise Fail ( \"expected \" ^ Input.Token.lookaheadToString NONE\n" ^
+        "                       ^ \", got \" ^ Input.Token.toString token'" ^
+        "                       ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n"
 
     fun parserCode {parserName, tokenType, tokenCtors, support, rules, startRule} =
         let val internalStartName = "start__" ^ startRule
-            val grammar = analyze rules startRule (SOME internalStartName)
+            val grammar = Analysis.analyze rules startRule (SOME internalStartName)
         in "functor " ^ parserName ^ "(Input: NIPO_PARSER_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
            "    " ^ support ^ "\n\n" ^
            ctorPredicates tokenCtors ^ "\n\n" ^

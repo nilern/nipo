@@ -1,18 +1,32 @@
 structure Token = CharClass
-structure Grammar = Grammar(Token)
+structure Grammar = LexerGrammar
+structure Analyzed = AnalyzedGrammar(Grammar)
+structure Lookahead = Lookahead(Token)
+structure NullableToken = NullableToken(Lookahead)
+structure FirstSet = TokenSet(NullableToken)
+structure FollowSet = FollowSet(struct
+    structure Lookahead = Lookahead
+    structure NullableToken = NullableToken
+    structure FirstSet = FirstSet
+end)
+structure Analysis = GrammarAnalysis(struct
+    structure Grammar = Grammar
+    structure Analyzed = Analyzed
+    structure Lookahead = Lookahead
+    structure NullableToken = NullableToken
+    structure FirstSet = FirstSet
+    structure FollowSet = FollowSet
+end)
 structure Lexers = NipoLexers(struct
     structure Token = Token
     structure Grammar = Grammar
     structure Parsers = NipoParsers(struct
         structure Grammar = Grammar
-        structure Lookahead = Lookahead(Token)
-        structure NullableToken = NullableToken(Lookahead)
-        structure FirstSet = TokenSet(NullableToken)
-        structure FollowSet = FollowSet(struct
-            structure Lookahead = Lookahead
-            structure NullableToken = NullableToken
-            structure FirstSet = FirstSet
-        end)
+        structure NullableToken = NullableToken
+        structure Lookahead = Lookahead
+        structure FirstSet = FirstSet
+        structure FollowSet = FollowSet
+        structure Analysis = Analysis
     end)
 end)
 datatype atom = datatype Grammar.atom
