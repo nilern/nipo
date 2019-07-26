@@ -192,10 +192,12 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
         "            if token' = token\n" ^
         "            then token'\n" ^
         "            else raise Fail ( \"expecfed \" ^ Input.Token.toString token\n" ^
-        "                            ^ \", got \" ^ Input.Token.toString token' )\n" ^
+        "                            ^ \", got \" ^ Input.Token.toString token'\n" ^
+        "                            ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n" ^
         "         | NONE =>\n" ^
         "            raise Fail ( \"expected \" ^ Input.Token.toString token\n" ^
-        "                       ^ \", got \" ^ Input.Token.lookaheadToString NONE )"
+        "                       ^ \", got \" ^ Input.Token.lookaheadToString NONE\n" ^
+        "                       ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n"
 
     val matchPredCode =
         "    fun matchPred pred input =\n" ^
@@ -203,9 +205,11 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
         "        of SOME token' =>\n" ^
         "            if pred token'\n" ^
         "            then token'\n" ^
-        "            else raise Fail (\"unexpected \" ^ Input.Token.toString token')\n" ^
+        "            else raise Fail ( \"unexpected \" ^ Input.Token.toString token'\n" ^
+        "                            ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n" ^
         "         | NONE =>\n" ^
-        "            raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString NONE)"
+        "            raise Fail ( \"unexpected \" ^ Input.Token.lookaheadToString NONE" ^
+        "                       ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n"
 
     val matchEOFCode =
         "    fun matchEOF input =\n" ^
@@ -213,7 +217,8 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
         "        of NONE => ()\n" ^
         "         | SOME token' =>\n" ^
         "            raise Fail ( \"expected \" ^ Input.Token.lookaheadToString NONE\n" ^
-        "                       ^ \", got \" ^ Input.Token.toString token' )"
+        "                       ^ \", got \" ^ Input.Token.toString token'" ^
+        "                       ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n"
 
     fun ctorPredicateDef ctor =
         "val is" ^ ctor ^ " = fn " ^ ctor ^ " _ => true | _ => false"
@@ -291,7 +296,8 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
                                          {lookaheads = FollowSet.patternCode lookaheads, productees})
                                     branches
             val errorBody = 
-                "            raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString lookahead ^ \" in " ^ name ^ "\")"
+                "            raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString lookahead ^ \" in " ^ name ^
+                " at \" ^ Input.Pos.toString (Input.pos input))"
             val (patternBranches, predBranches) = List.partition isPatternBranch branches
             val (predBranches, defaultBranches) = List.partition isPredicateBranch predBranches
             val defaultBranch =
@@ -317,7 +323,7 @@ end) :> PARSERS where type Grammar.atom = Args.Grammar.atom= struct
     fun parserCode {parserName, tokenType, tokenCtors, support, grammar, startName} =
         let val internalStartName = "start__" ^ startName
             val grammar = analyze grammar startName (SOME internalStartName)
-        in "functor " ^ parserName ^ "(Input: NIPO_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
+        in "functor " ^ parserName ^ "(Input: NIPO_PARSER_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
            "    " ^ support ^ "\n\n" ^
            ctorPredicates tokenCtors ^ "\n\n" ^
            matchPredCode ^ "\n\n" ^

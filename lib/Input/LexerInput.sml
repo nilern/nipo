@@ -4,8 +4,10 @@ functor LexerInput(Inner: RESETABLE_NIPO_INPUT
 ) :> NIPO_LEXER_INPUT
     where type Inner.stream = Inner.stream
 = struct
+    structure Pos = Pos
+
     type stream = {inner: Inner.stream, pos: Pos.t ref}
-    type t = stream
+    type positioned = stream
     type checkpoint = {inner: Inner.checkpoint, pos: Pos.t}
 
     structure Token = Inner.Token

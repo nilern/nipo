@@ -3,10 +3,20 @@ structure NipoStringInput :> sig
         where type Token.t = char
         where type Token.vector = string
 
+    include POSITIONED
+        where type Pos.t = int
+        where type positioned = stream
+
     val fromString: string -> stream
 end = struct
     type stream = char VectorSlice.slice ref
+    type positioned = stream
     type checkpoint = int
+
+    structure Pos = struct
+        type t = int
+        val toString = Int.toString
+    end
 
     structure Token = struct
         type t = char
@@ -19,6 +29,8 @@ end = struct
     end
 
     val fromString = ref o VectorSlice.full
+    
+    fun pos (ref cs) = #2 (VectorSlice.base cs)
 
     fun peek (ref cs) =
         Option.map #1 (VectorSlice.getItem cs)
@@ -36,7 +48,7 @@ end = struct
                 ; VectorSlice.vector (VectorSlice.subslice (cs, 0, NONE)) )
         end
 
-    fun checkpoint (ref cs) = #2 (VectorSlice.base cs)
+    val checkpoint = pos
 
     fun reset (stream, mark) =
         stream := VectorSlice.slice (#1 (VectorSlice.base (!stream)), mark, NONE)

@@ -16,6 +16,20 @@ structure NipoTokens = struct
     type t = token
     type vector = t vector
 
+    val startPos =
+        fn Lexer pos => pos
+         | Parser pos => pos
+         | Where pos => pos
+         | Rules pos => pos
+         | Start pos => pos
+         | Eq pos => pos
+         | Bar pos => pos
+         | LBrace pos => pos
+         | RBrace pos => pos
+         | Semi pos => pos
+         | Id (pos, _, _) => pos
+         | Action (pos, _, _) => pos
+
     val tokenChars =
          fn Id (_, cs, _) => cs
           | Action (_, cs, _) => cs
@@ -31,7 +45,7 @@ structure NipoTokens = struct
          | LBrace _ => "delimiter {"
          | RBrace _ => "delimiter }"
          | Semi _ => "terminator ;"
-         | Id (_, name, _) => name
+         | Id (_, name, _) => "identifier " ^ name
          | Action (_, code, _) => "`" ^ code ^ "`"
 
     val lookaheadToString =

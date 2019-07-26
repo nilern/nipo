@@ -69,7 +69,7 @@ end) :> LEXERS
         let val {grammar, actions} = extractActions rules startRule
         in  "functor " ^ lexerName ^ "(Args: sig\n" ^
             "    structure Input: NIPO_LEXER_INPUT\n" ^
-            "    structure Token: NIPO_TOKEN where type t = " ^ tokenType ^ "\n" ^
+            "    structure Token: NIPO_POSITIONED_TOKEN where type t = " ^ tokenType ^ "\n" ^
             "end) :> NIPO_LEXER\n" ^
             "    where type Input.stream = Args.Input.stream\n" ^
             "    where type Input.checkpoint = Args.Input.checkpoint\n" ^

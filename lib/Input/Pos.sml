@@ -11,11 +11,8 @@ structure Pos = struct
         , index = index + 1
         , line = if c = #"\n" then line + 1 else line
         , col = if c = #"\n" then 1 else col + 1 }
-end
 
-signature POSITIONED = sig
-    type t
-
-    val pos: t -> Pos.t
+    fun toString {name = name, index = _, line = line, col = col} =
+        name ^ " at " ^ Int.toString line ^ ":" ^ Int.toString col
 end
 

@@ -30,10 +30,10 @@ val main =
                     ; lexAll tokens )
                  | NONE => ()
             val input = TextIO.getInstream (TextIO.openIn filename)
-            val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default "CLI")
+            val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default filename)
             val tokens = TokenStream.tokenize lexerInput
             do lexAll tokens
-            val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default "CLI")
+            val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default filename)
             val tokens = TokenStream.tokenize lexerInput
         in Parser.start__parser tokens
          ; ()
