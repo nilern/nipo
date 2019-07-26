@@ -21,6 +21,7 @@ functor GrammarAnalysis(Args: sig
 end) :> GRAMMAR_ANALYSIS
     where type Grammar.atom = Args.Grammar.atom
     where type LookaheadSet.set = Args.FollowSet.set
+    where type LookaheadSet.item = Args.FollowSet.item
 = struct
     open BranchCond
     open Matcher
@@ -105,7 +106,7 @@ end) :> GRAMMAR_ANALYSIS
         end
 
     fun followSets (grammar: first_set Analyzed.branch list StringMap.map) (fiSets: first_set StringMap.map) internalStartName
-            : lookahead_set StringMap.map =
+            : follow_set StringMap.map =
         let val isStart = case internalStartName
                           of SOME startRule => (fn name => name = startRule)
                            | NONE => (fn _ => false)
@@ -186,13 +187,8 @@ end
 signature PARSERS_ARGS = sig
     structure Grammar: GRAMMAR
     structure Lookahead: LEXEME where type t = Grammar.Token.t option
-    structure NullableToken: NULLABLE_LEXEME where type non_nullable = Lookahead.t
-    structure FirstSet: TOKEN_SET where type item = NullableToken.t
-    structure FollowSet: FOLLOW_SET
-        where type item = Lookahead.t
-        where type FirstSet.set = FirstSet.set
     structure Analysis: GRAMMAR_ANALYSIS
-        where type LookaheadSet.set = FollowSet.set
+        where type LookaheadSet.item = Lookahead.t
         where type Grammar.atom = Grammar.atom
 end
 
@@ -214,17 +210,11 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
     open BranchCond
     open Matcher
     structure Grammar = Args.Grammar
-    structure Analyzed = Args.Analysis.Analyzed
-    structure Token = Grammar.Token
     datatype atom = datatype Grammar.atom
-    structure Lookahead = Args.Lookahead
-    structure NullableToken = Args.NullableToken
-    structure FirstSet = Args.FirstSet
-    type first_set = FirstSet.set
-    structure FollowSet = Args.FollowSet
-    structure LookaheadSet = FollowSet
-    type follow_set = FollowSet.set
     structure Analysis = Args.Analysis
+    structure Analyzed = Analysis.Analyzed
+    structure Lookahead = Args.Lookahead
+    structure LookaheadSet = Analysis.LookaheadSet
     
     (* FIXME: Error messages in these match routines give position after token: *)
 
@@ -321,7 +311,7 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
     (* FIXME: Detect conflicts *)
     fun ntCode name branches =
         let val branches = List.map (fn {lookaheads, productees} =>
-                                         {lookaheads = FollowSet.patternCode lookaheads, productees})
+                                         {lookaheads = LookaheadSet.patternCode lookaheads, productees})
                                     branches
             val errorBody = 
                 "            raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString lookahead ^ \" in " ^ name ^
