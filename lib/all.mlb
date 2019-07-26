@@ -8,5 +8,6 @@ ann "warnUnused true" in
     Input/LexerInput.sml
     Lexer.sml
     Input/LexedInput.sml
+    Token.sml
 end
 

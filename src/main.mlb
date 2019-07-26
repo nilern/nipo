@@ -10,6 +10,7 @@ ann "warnUnused true" in
         Lexers.sml
         ../lib/Input/Pos.sml
         ../lib/Input/input.sml
+        ../lib/Token.sml
         ../lib/Lexer.sml
         NipoTokens.sml
         SelfLexer.sml

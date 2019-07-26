@@ -1,5 +1,8 @@
-arith: arith.sml arith.mlb
+arith: arith.mlb Lexer.sml arith.sml
 	mlton -const 'Exn.keepHistory true' arith.mlb
+
+Lexer.sml: lexer.nipo
+	../../src/nipo $< > $@
 
 .PHONY: run
 run: arith
@@ -7,5 +10,5 @@ run: arith
 
 .PHONY: clean
 clean:
-	rm -f arith
+	rm -f Lexer.sml arith
 

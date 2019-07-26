@@ -1,6 +1,8 @@
-../../src/nipo.mlb
+../../lib/all.mlb
 
 ann "allowSuccessorML true" in
+    Token.sml
+    Lexer.sml
     arith.sml
 end
 

@@ -1,16 +1,6 @@
 structure TextIOInput = NipoStreamIOInput(struct
     structure IOStream = TextIO.StreamIO
-
-    structure Token = struct
-        type t = char
-        type vector = string
-
-        val toString = Char.toString
-
-        val lookaheadToString =
-            fn SOME c => toString c
-             | NONE => "EOF"
-    end
+    structure Token = CharToken
 end)
 structure LexerTextInput = LexerInput(TextIOInput)
 structure Lexer = NipoLexer(struct

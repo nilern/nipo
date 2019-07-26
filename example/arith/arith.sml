@@ -1,24 +1,28 @@
-structure Parsers = NipoParsers(NipoStringInput)
+structure TextIOInput = NipoStreamIOInput(struct
+    structure IOStream = TextIO.StreamIO
+    structure Token = CharToken
+end)
+structure LexerTextInput = LexerInput(TextIOInput)
+structure Lexer = ArithLexer(struct
+    structure Input = LexerTextInput
+    structure Token = ArithToken
+end)
 
-val n = Parsers.rule
-val t = Parsers.token
+structure TokenStream = NipoLexedInput(Lexer)
 
-val grammar =
-    [ ("expr", [[n "term", n "terms"]])
-    , ("terms", [ [t #"+", n "term", n "terms"]
-                , [] ])
-    , ("term", [[n "factor", n "factors"]])
-    , ("factors", [ [t #"*", n "factor", n "factors"]
-                  , [] ])
-    , ("factor", [ [t #"(", n "expr", t #")"]
-                 , [n "digit"] ])
-    , ("digit", [ [t #"0"], [t #"1"], [t #"2"]
-                , [t #"3"], [t #"4"], [t #"5"]
-                , [t #"6"], [t #"7"], [t #"8"], [t #"9"] ]) ]
+fun main () =
+    let val input = TextIO.getInstream TextIO.stdIn
+        val input = TextIOInput.fromInstream input
+        val input = LexerTextInput.fromInner (input, Pos.default "<stdin>")
+        
+        fun lexAll tokens =
+            case TokenStream.pop tokens
+            of SOME token =>
+                ( print (ArithToken.toString token ^ "\n")
+                ; lexAll tokens )
+             | NONE => ()
+    in lexAll (TokenStream.tokenize input)
+    end
 
-val parse = Parsers.parser grammar "expr"
-
-val _ = print (Parsers.parserCode grammar "expr" ^ "\n")
-
-val _ = parse (ref (VectorSlice.full "(1+2)*3"))
+val _ = main ()
 

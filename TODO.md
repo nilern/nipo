@@ -3,6 +3,8 @@
 - [x] naming atoms for use in actions
 - [x] Successfully parsing example grammar specs
 - [ ] Conflict detection
+- [ ] Anonymous rules
+- [ ] ?*+ operators
 - [ ] PLL (parse lvals!)
-- [ ] Sane backtraacking (parse patterns!)
+- [ ] Sane backtracking (parse patterns!)
 
