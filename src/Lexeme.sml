@@ -59,7 +59,16 @@ structure CharClass = struct
     open BranchCond
     open Matcher
 
-    datatype posix = Alpha
+    datatype posix = Alpha | Digit | Space
+
+    val comparePosix =
+        fn (Alpha, Alpha) => EQUAL
+         | (Alpha, Digit | Space) => LESS
+         | (Digit, Alpha) => GREATER
+         | (Digit, Digit) => EQUAL
+         | (Digit, Space) => LESS
+         | (Space, Space) => EQUAL
+         | (Space, Alpha | Digit) => GREATER
 
     datatype t = Singleton of char
                | Posix of posix
@@ -68,13 +77,15 @@ structure CharClass = struct
     val rec toString =
         fn Singleton c => "'" ^ Char.toString c ^ "'"
          | Posix Alpha => "[:alpha:]"
+         | Posix Digit => "[:digit:]"
+         | Posix Space => "[:space:]"
          | Not cc => "[^" ^ toString cc ^ "]"
 
     val rec compare = 
         fn (Singleton c, Singleton c') => Char.compare (c, c')
          | (Singleton _, Posix _) => LESS
          | (Posix _, Singleton _) => GREATER
-         | (Posix Alpha, Posix Alpha) => EQUAL
+         | (Posix pcc, Posix pcc') => comparePosix (pcc, pcc')
          | (Not cc, Not cc') => compare (cc, cc')
          | (Not _, _) => GREATER
          | (_, Not _) => LESS
@@ -88,6 +99,8 @@ structure CharClass = struct
     val rec patternCode =
         fn Singleton c => Pattern ("#\"" ^ Char.toString c ^ "\"")
          | Posix Alpha => Predicate (fn lookahead => "Char.isAlpha " ^ lookahead)
+         | Posix Digit => Predicate (fn lookahead => "Char.isDigit " ^ lookahead)
+         | Posix Space => Predicate (fn lookahead => "Char.isSpace " ^ lookahead)
          | Not cc =>
             (case patternCode cc
              of Pattern pat => Predicate (fn lookahead => lookahead ^ " <> " ^ pat)

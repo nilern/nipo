@@ -32,6 +32,8 @@ end) :> LEXERS
                     in Terminal (SOME (CharClass.Singleton c))
                     end
                  | Posix "alpha" => Terminal (SOME (CharClass.Posix CharClass.Alpha))
+                 | Posix "digit" => Terminal (SOME (CharClass.Posix CharClass.Digit))
+                 | Posix "space" => Terminal (SOME (CharClass.Posix CharClass.Space))
                  | Complement atom =>
                     (case convertAtom atom
                      of Terminal (SOME cc) => Terminal (SOME (CharClass.Not cc)))

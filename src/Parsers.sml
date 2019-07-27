@@ -229,7 +229,7 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
         "        of SOME token' =>\n" ^
         "            if token' = token\n" ^
         "            then token'\n" ^
-        "            else raise Fail ( \"expecfed \" ^ Input.Token.toString token\n" ^
+        "            else raise Fail ( \"expected \" ^ Input.Token.toString token\n" ^
         "                            ^ \", got \" ^ Input.Token.toString token'\n" ^
         "                            ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n" ^
         "         | NONE =>\n" ^
@@ -328,11 +328,17 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
                 of [] => errorBody
                  | [{productees = [productee], ...}] => producteeCode productee
                  | _ => raise Fail (name ^ " has multiple default branches")
-        in "    and " ^ name ^ " input =\n"
-           ^ "        case Input.peek input\n"
-           ^ "        of " ^ String.concatWith "\n         | " (List.map branchCode patternBranches) ^ "\n"
-           ^ "         | lookahead =>\n"
-           ^ predicateBranchesCode predBranches defaultBranch
+        in "    and " ^ name ^ " input =\n" ^
+           (case patternBranches
+            of [] =>
+                "        let val lookahead = Input.peek input\n" ^
+                "        in " ^ predicateBranchesCode predBranches defaultBranch ^ "\n" ^
+                "        end"
+             | _ => 
+                "        case Input.peek input\n"
+                ^ "        of " ^ String.concatWith "\n         | " (List.map branchCode patternBranches) ^ "\n"
+                ^ "         | lookahead =>\n"
+                ^ predicateBranchesCode predBranches defaultBranch)
         end
 
     fun rulesCode grammar =

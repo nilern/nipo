@@ -32,9 +32,10 @@ val grammar =
                                         ^ ", support = \"\", tokenCtors = [], tokenType = \"\"}" ) }])
     , ("lexer", [{ atoms = [ token "Lexer", InNamed ("lexerName", token "Id")
                            , token "Arrow", InNamed ("tokenType", token "Action"), token "Where"
-                           , token "Rules", obvNamed "rules" ]
-                 , action = SOME ( "{lexerName = tokenChars lexerName, rules = #rules rules, startRule = #startRule rules"
-                                 ^ ", tokenType = tokenChars tokenType, whitespaceRule = \"\"}" ) }])
+                           , token "Rules", obvNamed "rules"
+                           , obvNamed "whitespaceRule" ]
+                 , action = SOME ( "{lexerName = tokenChars lexerName, rules = #rules rules @ [whitespaceRule], startRule = #startRule rules"
+                                 ^ ", tokenType = tokenChars tokenType, whitespaceRule = #1 whitespaceRule}" ) }])
     , ("rules", [{ atoms = [ InNamed ("starter", nonTerminal "startRule")
                            , InNamed ("others", nonTerminal "auxRules") ]
                  , action = SOME "{startRule = #1 starter, rules = starter :: others}" }])
@@ -42,6 +43,7 @@ val grammar =
                      , action = SOME "rule :: rules" }
                    , { atoms = [], action = SOME "[]" } ])
     , ("startRule", [{atoms = [token "Start", obvNamed "rule"], action = SOME "rule"}])
+    , ("whitespaceRule", [{atoms = [token "Whitespace", obvNamed "rule"], action = SOME "rule"}])
     , ("rule", [{ atoms = [InNamed ("name", token "Id"), token "Eq", InNamed ("productees", nonTerminal "productees"), token "Semi"]
                 , action = SOME "(tokenChars name, productees)" }])
     , ("productees", [ { atoms = [obvNamed "productee", InNamed ("productees", nonTerminal "producteesTail")]
@@ -54,15 +56,16 @@ val grammar =
     , ("atoms", [ {atoms = [obvNamed "atom", obvNamed "atoms"], action = SOME "atom :: atoms"}
                 , {atoms = [], action = SOME "[]"} ])
     , ("atom", [ {atoms = [InNamed ("atom", token "Id")], action = SOME "InputGrammar.Var (tokenChars atom)"}
-               , {atoms = [InNamed ("alias", token "Lit")], action = SOME "InputGrammar.Lit (tokenChars alias)"} ])
+               , {atoms = [InNamed ("alias", token "Lit")], action = SOME "InputGrammar.Lit (tokenChars alias)"}
+               , {atoms = [InNamed ("cclass", token "Posix")], action = SOME "InputGrammar.Posix (tokenChars cclass)"} ])
     , ("optAction", [ {atoms = [InNamed ("action", token "Action")], action = SOME "SOME (tokenChars action)"}
                     , {atoms = [], action = SOME "NONE"} ]) ]
 
 val _ = print (Parsers.parserCode { parserName = "NipoParser"
                                   , tokenType = "NipoTokens.t"
                                   , tokenCtors = List.map (fn name => (name, NONE))
-                                                          [ "Parser", "Lexer", "Id", "Lit", "Where", "Rules"
-                                                          , "Start", "Arrow", "Eq", "Bar", "Action", "Semi" ]
+                                                          [ "Parser", "Lexer", "Id", "Lit", "Posix", "Where", "Rules"
+                                                          , "Start", "Whitespace", "Arrow", "Eq", "Bar", "Action", "Semi" ]
                                   , support = "open NipoTokens"
                                   , rules = grammar
                                   , startRule = "parser" })

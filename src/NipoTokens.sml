@@ -5,18 +5,32 @@ structure NipoTokens = struct
         | Where of Pos.t
         | Rules of Pos.t
         | Start of Pos.t
+        | Whitespace of Pos.t
         | Arrow of Pos.t
         | Eq of Pos.t
         | Bar of Pos.t
+        | LBracket of Pos.t
+        | RBracket of Pos.t
         | LBrace of Pos.t
         | RBrace of Pos.t
         | Semi of Pos.t
         | Id of Pos.t * string * Pos.t
         | Lit of Pos.t * string * Pos.t
+        | Posix of Pos.t * string * Pos.t
         | Action of Pos.t * string * Pos.t
 
     type t = token
     type vector = t vector
+
+    fun fromId (span as (s, cs, e)) =
+        case cs
+        of "lexer" => Lexer s
+         | "parser" => Parser s
+         | "where" => Where s
+         | "rules" => Rules s
+         | "start" => Start s
+         | "whitespace" => Whitespace s
+         | _ => Id span
 
     val startPos =
         fn Lexer pos => pos
@@ -24,19 +38,24 @@ structure NipoTokens = struct
          | Where pos => pos
          | Rules pos => pos
          | Start pos => pos
+         | Whitespace pos => pos
          | Arrow pos => pos
          | Eq pos => pos
          | Bar pos => pos
+         | LBracket pos => pos
+         | RBracket pos => pos
          | LBrace pos => pos
          | RBrace pos => pos
          | Semi pos => pos
          | Id (pos, _, _) => pos
          | Lit (pos, _, _) => pos
+         | Posix (pos, _, _) => pos
          | Action (pos, _, _) => pos
 
     val tokenChars =
          fn Id (_, cs, _) => cs
           | Lit (_, cs, _) => cs
+          | Posix (_, cs, _) => cs
           | Action (_, cs, _) => cs
 
     val toString =
@@ -45,14 +64,18 @@ structure NipoTokens = struct
          | Where _ => "keyword where"
          | Rules _ => "keyword rules"
          | Start _ => "keyword start"
+         | Whitespace _ => "keyword whitespace"
          | Arrow _ => "operator ->"
          | Eq _ => "operator ="
          | Bar _ => "operator |"
+         | LBracket _ => "delimiter ["
+         | RBracket _ => "delimiter ]"
          | LBrace _ => "delimiter {"
          | RBrace _ => "delimiter }"
          | Semi _ => "terminator ;"
          | Id (_, name, _) => "identifier " ^ name
          | Lit (_, name, _) => "identifier " ^ name
+         | Posix (_, name, _) => "[:" ^ name ^ ":]"
          | Action (_, code, _) => "`" ^ code ^ "`"
 
     val lookaheadToString =

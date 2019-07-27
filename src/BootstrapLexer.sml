@@ -39,19 +39,16 @@ fun charsBetween (first, last) =
     end
 
 val grammar =
-    [ ("token", [ {atoms = tokens "lexer", action = SOME "NipoTokens.Lexer o #1"}
-                , {atoms = tokens "parser", action = SOME "NipoTokens.Parser o #1"}
-                , {atoms = tokens "where", action = SOME "NipoTokens.Where o #1"}
-                , {atoms = tokens "rules", action = SOME "NipoTokens.Rules o #1"}
-                , {atoms = tokens "start", action = SOME "NipoTokens.Start o #1"}
-                , {atoms = [Var "id"], action = SOME "NipoTokens.Id"}
+    [ ("token", [ {atoms = [Var "id"], action = SOME "NipoTokens.fromId"}
                 , { atoms = [Var "escapedId"]
                   , action = SOME "fn (s, cs, e) => NipoTokens.Lit (s, String.substring (cs, 1, String.size cs - 2), e)" }
                 , {atoms = tokens "->", action = SOME "NipoTokens.Arrow o #1"}
                 , {atoms = [Lit "="], action = SOME "NipoTokens.Eq o #1"}
                 , {atoms = [Lit "|"], action = SOME "NipoTokens.Bar o #1"}
-                , {atoms = [Lit "{", Var "action", Lit "}"]
+                , { atoms = [Lit "{", Var "action", Lit "}"]
                   , action = SOME "fn (s, cs, e) => NipoTokens.Action (s, String.substring (cs, 1, String.size cs - 2), e)" }
+                , { atoms = [Lit "[", Lit "[", Lit ":", Var "posix", Lit ":", Lit "]", Lit "]"],
+                    action = SOME "fn (s, cs, e) => NipoTokens.Posix (s, String.substring (cs, 3, String.size cs - 6), e)" }
                 , {atoms = [Lit ";"], action = SOME "NipoTokens.Semi o #1"} ])
     , ("id", [{atoms = [Var "alpha", Var "idTail"], action = NONE}])
     , ("idTail", [ {atoms = [Var "alpha", Var "idTail"], action = NONE}
@@ -60,6 +57,7 @@ val grammar =
     , ("freeIdContents", [ {atoms = [Complement (Lit "'"), Var "freeIdContents"], action = NONE}
                          , {atoms = [], action = NONE} ])
     , ("alpha", [ {atoms = [Posix "alpha"], action = NONE} ])
+    , ("posix", [ {atoms = [Var "id"], action = NONE} ])
     , ("action", [ {atoms = [Complement (Lit "}"), Var "action"], action = NONE}
                  , {atoms = [], action = NONE} ])
     , ("ws", [ {atoms = [Var "wsChar", Var "ws"], action = NONE}
