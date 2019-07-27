@@ -1,18 +1,20 @@
-lexer ArithLexer -> { ArithToken.t } where
+lexer ArithLexer -> {ArithToken.t} where
 
 rules
 
 start token
-    = '+' { ArithToken.Plus }
-    | '*' { ArithToken.Times }
-    | '(' { ArithToken.LParen }
-    | ')' { ArithToken.RParen }
-    | digits { ArithToken.Num o valOf o Int.fromString }
+    = '+' { ArithToken.Plus o #1 }
+    | '*' { ArithToken.Times o #1 }
+    | '(' { ArithToken.LParen o #1 }
+    | ')' { ArithToken.RParen o #1 }
+    | digits { fn (s, cs, e) => ArithToken.Num (s, valOf (Int.fromString cs), e) }
     ;
 
-digits
-    = digit digits
-    | digit
+digits = digit digitsTail;
+
+digitsTail
+    = digit digitsTail
+    |
     ;
 
 digit

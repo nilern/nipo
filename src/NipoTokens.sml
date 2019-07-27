@@ -5,6 +5,7 @@ structure NipoTokens = struct
         | Where of Pos.t
         | Rules of Pos.t
         | Start of Pos.t
+        | Arrow of Pos.t
         | Eq of Pos.t
         | Bar of Pos.t
         | LBrace of Pos.t
@@ -23,6 +24,7 @@ structure NipoTokens = struct
          | Where pos => pos
          | Rules pos => pos
          | Start pos => pos
+         | Arrow pos => pos
          | Eq pos => pos
          | Bar pos => pos
          | LBrace pos => pos
@@ -43,6 +45,7 @@ structure NipoTokens = struct
          | Where _ => "keyword where"
          | Rules _ => "keyword rules"
          | Start _ => "keyword start"
+         | Arrow _ => "operator ->"
          | Eq _ => "operator ="
          | Bar _ => "operator |"
          | LBrace _ => "delimiter {"

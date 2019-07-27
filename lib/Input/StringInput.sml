@@ -25,7 +25,7 @@ end = struct
         fun toString c = Char.toString c
         val lookaheadToString =
             fn SOME c => toString c
-             | NONE => "EOF"
+             | NONE => "<EOF>"
     end
 
     val fromString = ref o VectorSlice.full

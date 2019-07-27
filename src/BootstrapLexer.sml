@@ -47,6 +47,7 @@ val grammar =
                 , {atoms = [Var "id"], action = SOME "NipoTokens.Id"}
                 , { atoms = [Var "escapedId"]
                   , action = SOME "fn (s, cs, e) => NipoTokens.Lit (s, String.substring (cs, 1, String.size cs - 2), e)" }
+                , {atoms = tokens "->", action = SOME "NipoTokens.Arrow o #1"}
                 , {atoms = [Lit "="], action = SOME "NipoTokens.Eq o #1"}
                 , {atoms = [Lit "|"], action = SOME "NipoTokens.Bar o #1"}
                 , {atoms = [Lit "{", Var "action", Lit "}"]

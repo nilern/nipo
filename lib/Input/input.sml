@@ -71,4 +71,3 @@ signature NIPO_LEXER_INPUT = sig
 
     val fromInner: Inner.stream * Pos.t -> stream
 end
-

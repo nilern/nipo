@@ -5,7 +5,7 @@ structure CharToken = struct
     val toString = Char.toString
 
     val lookaheadToString =
-        fn SOME c => toString c
+        fn SOME c => "'" ^ toString c ^ "'"
          | NONE => "EOF"
 end
 
