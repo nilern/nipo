@@ -27,15 +27,27 @@ val grammar =
     [ ("parser", [ {atoms = [InNamed ("parser", nonTerminal "properParser")], action = SOME "InputGrammar.Parser parser"}
                  , {atoms = [obvNamed "lexer"], action = SOME "InputGrammar.Lexer lexer"} ])
     , ("properParser", [{ atoms = [ token "Parser", InNamed ("parserName", token "Id"), token "Where"
+                                  , obvNamed "support", obvNamed "tokens"
                                   , token "Rules", obvNamed "rules" ]
                         , action = SOME ( "{parserName = tokenChars parserName, rules = #rules rules, startRule = #startRule rules"
-                                        ^ ", support = \"\", tokenCtors = [], tokenType = \"\"}" ) }])
+                                        ^ ", support = support, tokenCtors = #ctors tokens, tokenType = #typ tokens}" ) }])
     , ("lexer", [{ atoms = [ token "Lexer", InNamed ("lexerName", token "Id")
                            , token "Arrow", InNamed ("tokenType", token "Action"), token "Where"
                            , token "Rules", obvNamed "rules"
                            , obvNamed "whitespaceRule" ]
                  , action = SOME ( "{lexerName = tokenChars lexerName, rules = #rules rules @ [whitespaceRule], startRule = #startRule rules"
                                  ^ ", tokenType = tokenChars tokenType, whitespaceRule = #1 whitespaceRule}" ) }])
+    , ("support", [ {atoms = [InNamed ("supportHeader", token "Action")], action = SOME "tokenChars supportHeader"}
+                  , {atoms = [], action = SOME "\"\""} ])
+    , ("tokens", [{ atoms = [token "Token", InNamed ("typ", token "Action"), token "Eq", obvNamed "tokenSpecs", token "Semi"]
+                  , action = SOME "{typ = tokenChars typ, ctors = tokenSpecs}" }])
+    , ("tokenSpecs", [{atoms = [obvNamed "tokenSpec", obvNamed "optTokenSpecs"], action = SOME "tokenSpec :: optTokenSpecs"}])
+    , ("optTokenSpecs", [ {atoms = [token "Bar", obvNamed "tokenSpecs"], action = SOME "tokenSpecs"}
+                        , {atoms = [], action = SOME "[]"} ])
+    , ("tokenSpec", [{ atoms = [InNamed ("name", token "Id"), InNamed ("alias", nonTerminal "optAlias")]
+                     , action = SOME "(tokenChars name, alias)" }])
+    , ("optAlias", [ {atoms = [InNamed ("alias", token "Lit")], action = SOME "SOME (tokenChars alias)"}
+                   , {atoms = [], action = SOME "NONE"} ])
     , ("rules", [{ atoms = [ InNamed ("starter", nonTerminal "startRule")
                            , InNamed ("others", nonTerminal "auxRules") ]
                  , action = SOME "{startRule = #1 starter, rules = starter :: others}" }])
@@ -47,8 +59,7 @@ val grammar =
     , ("rule", [{ atoms = [InNamed ("name", token "Id"), token "Eq", InNamed ("productees", nonTerminal "productees"), token "Semi"]
                 , action = SOME "(tokenChars name, productees)" }])
     , ("productees", [ { atoms = [obvNamed "productee", InNamed ("productees", nonTerminal "producteesTail")]
-                       , action = SOME "productee :: productees" }
-                     , {atoms = [], action = SOME "[]"} ])
+                       , action = SOME "productee :: productees" } ])
     , ("producteesTail", [ {atoms = [token "Bar", obvNamed "productees"], action = SOME "productees"}
                          , {atoms = [], action = SOME "[]"} ])
     , ("productee", [{ atoms = [obvNamed "atoms", obvNamed "optAction"]
@@ -64,7 +75,7 @@ val grammar =
 val _ = print (Parsers.parserCode { parserName = "NipoParser"
                                   , tokenType = "NipoTokens.t"
                                   , tokenCtors = List.map (fn name => (name, NONE))
-                                                          [ "Parser", "Lexer", "Id", "Lit", "Posix", "Where", "Rules"
+                                                          [ "Parser", "Lexer", "Id", "Lit", "Posix", "Where", "Token", "Rules"
                                                           , "Start", "Whitespace", "Arrow", "Eq", "Bar", "Action", "Semi" ]
                                   , support = "open NipoTokens"
                                   , rules = grammar

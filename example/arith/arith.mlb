@@ -3,6 +3,7 @@
 ann "allowSuccessorML true" in
     Token.sml
     Lexer.sml
+    Parser.sml
     arith.sml
 end
 

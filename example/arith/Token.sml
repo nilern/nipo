@@ -14,6 +14,10 @@ structure ArithToken = struct
          | LParen pos => pos
          | RParen pos => pos
          | Num (pos, _, _) => pos
+
+    val tokenInt =
+        fn Num (_, n, _) => SOME n
+         | _ => NONE
     
     val toString =
         fn Plus _ => "+"

@@ -1,8 +1,18 @@
 parser ArithParser where
 
+{ open ArithToken }
+
+token {ArithToken.t}
+    = Plus '+'
+    | Times '*'
+    | LParen '('
+    | RParen ')'
+    | Num
+    ;
+
 rules
 
-start expr = term terms { foldl op+ factor factors };
+start expr = term terms { foldl op+ term terms };
 
 terms
     = '+' term terms { term :: terms }
@@ -18,6 +28,6 @@ factors
 
 factor
     = '(' expr ')' { expr }
-    | DIGIT        { DIGIT }
+    | Num          { valOf (tokenInt tokNum) }
     ;
 

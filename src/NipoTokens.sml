@@ -3,6 +3,7 @@ structure NipoTokens = struct
         = Lexer of Pos.t
         | Parser of Pos.t
         | Where of Pos.t
+        | Token of Pos.t
         | Rules of Pos.t
         | Start of Pos.t
         | Whitespace of Pos.t
@@ -27,6 +28,7 @@ structure NipoTokens = struct
         of "lexer" => Lexer s
          | "parser" => Parser s
          | "where" => Where s
+         | "token" => Token s
          | "rules" => Rules s
          | "start" => Start s
          | "whitespace" => Whitespace s
@@ -36,6 +38,7 @@ structure NipoTokens = struct
         fn Lexer pos => pos
          | Parser pos => pos
          | Where pos => pos
+         | Token pos => pos
          | Rules pos => pos
          | Start pos => pos
          | Whitespace pos => pos
@@ -62,6 +65,7 @@ structure NipoTokens = struct
         fn Lexer _ => "keyword lexer"
          | Parser _ => "keyword parser"
          | Where _ => "keyword where"
+         | Token _ => "keyword token"
          | Rules _ => "keyword rules"
          | Start _ => "keyword start"
          | Whitespace _ => "keyword whitespace"

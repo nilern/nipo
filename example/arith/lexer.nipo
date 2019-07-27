@@ -2,7 +2,7 @@ lexer ArithLexer -> {ArithToken.t} where
 
 rules
 
-start token
+start tok
     = '+' { ArithToken.Plus o #1 }
     | '*' { ArithToken.Times o #1 }
     | '(' { ArithToken.LParen o #1 }

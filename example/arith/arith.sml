@@ -9,6 +9,7 @@ structure Lexer = ArithLexer(struct
 end)
 
 structure TokenStream = NipoLexedInput(Lexer)
+structure Parser = ArithParser(TokenStream)
 
 fun main () =
     let val input = TextIO.getInstream TextIO.stdIn

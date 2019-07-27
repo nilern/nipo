@@ -51,7 +51,7 @@ end) :> GRAMMAR_ANALYSIS
          | NonTerminal name =>
             (case StringMap.find (fiSets, name)
              of SOME firsts => firsts
-              | NONE => raise Fail ("missing FIRST set for " ^ name))
+              | NONE => raise Fail ("undefined nonterminal " ^ name))
          | Named (_, inner) => atomFirstSet fiSets inner
 
     fun producteeFirstSet fiSets {atoms, action = _} =
@@ -372,24 +372,28 @@ functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.atom = Par
     fun terminalTranslation tokenCtors =
         List.foldl addTerminalTranslation StringMap.empty tokenCtors
 
+    fun tParsedName canonName = "tok" ^ canonName
+
+    fun ntParserName resName = "parse" ^ String.capitalize resName
+
     fun nameToAtom terminals name =
         case StringMap.find (terminals, name)
-        of SOME canonName => Terminal (SOME canonName)
-         | NONE => NonTerminal name
+        of SOME canonName => Named (tParsedName canonName, Terminal (SOME canonName))
+         | NONE => Named (name, NonTerminal (ntParserName name))
 
     fun convertAtoms terminals grammar =
         let val rec convertAtom =
                 fn Var name =>
                     if Char.isUpper (String.sub (name, 0))
                     then nameToAtom terminals name
-                    else NonTerminal name
+                    else Named (name, NonTerminal (ntParserName name))
                  | Lit name => nameToAtom terminals name
                  | InNamed (name, atom) => Named (name, convertAtom atom)
 
             fun convertProductee {atoms, action} =
                 {atoms = List.map convertAtom atoms, action}
             fun convertNt (name, productees) =
-                (name, List.map convertProductee productees)
+                (ntParserName name, List.map convertProductee productees)
         in List.map convertNt grammar
         end
 
@@ -411,7 +415,7 @@ functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.atom = Par
     fun parserCode ({parserName, tokenType, tokenCtors, support, rules, startRule}: InputGrammar.parser) =
         let val internalStartName = "start__" ^ startRule
             val rules = convertAtoms (terminalTranslation tokenCtors) rules
-            val grammar = Analysis.analyze rules startRule (SOME internalStartName)
+            val grammar = Analysis.analyze rules (ntParserName startRule) (SOME internalStartName)
         in "functor " ^ parserName ^ "(Input: NIPO_PARSER_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
            "    " ^ support ^ "\n\n" ^
            ctorPredicates tokenCtors ^ "\n\n" ^
