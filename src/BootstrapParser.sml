@@ -51,7 +51,7 @@ val grammar =
                      , action = SOME "{atoms = atoms, action = optAction}" }])
     , ("atoms", [ {atoms = [namedNt "atom", namedNt "atoms"], action = SOME "atom :: atoms"}
                 , {atoms = [], action = SOME "[]"} ])
-    , ("atom", [{atoms = [Named ("atom", token "Id")], action = SOME "InputGrammar.NonTerminal (tokenChars atom)"}])
+    , ("atom", [{atoms = [Named ("atom", token "Id")], action = SOME "InputGrammar.Var (tokenChars atom)"}])
     , ("optAction", [ {atoms = [Named ("action", token "Action")], action = SOME "SOME (tokenChars action)"}
                     , {atoms = [], action = SOME "NONE"} ]) ]
 

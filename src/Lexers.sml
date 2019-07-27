@@ -2,7 +2,7 @@ signature LEXERS = sig
     structure Token: LEXEME
     structure Grammar: GRAMMAR where type Token.t = Token.t
 
-    val lexerCode: LexerGrammar.lexer -> string
+    val lexerCode: InputGrammar.lexer -> string
 end
 
 functor NipoLexers(Args: sig
@@ -15,9 +15,34 @@ end) :> LEXERS
     where type Token.t = Args.Token.t
     where type Grammar.atom = Args.Grammar.atom
 = struct
+    datatype in_atom = datatype InputGrammar.atom
+    datatype atom = datatype LexerGrammar.atom
+    
     structure Token = Args.Token
     structure Grammar = Args.Grammar
     structure Parsers = Args.Parsers
+
+    fun convertAtoms grammar =
+        let val rec convertAtom =
+                fn Var name => NonTerminal name
+                 | Lit name =>
+                    let val c = case Char.fromString name
+                                of SOME c => c
+                                 | NONE => raise Fail ("Bad char literal '" ^ name ^ "'") (* HACK *)
+                    in Terminal (SOME (CharClass.Singleton c))
+                    end
+                 | Posix "alpha" => Terminal (SOME (CharClass.Posix CharClass.Alpha))
+                 | Complement atom =>
+                    (case convertAtom atom
+                     of Terminal (SOME cc) => Terminal (SOME (CharClass.Not cc)))
+                 | InNamed (name, atom) => Named (name, convertAtom atom)
+            
+            fun convertProductee {atoms, action} =
+                {atoms = List.map convertAtom atoms, action}
+            fun convertNt (name, productees) =
+                (name, List.map convertProductee productees)
+        in List.map convertNt grammar
+        end
 
     fun extractActions grammar startRule =
         let val actions = ref []
@@ -64,7 +89,8 @@ end) :> LEXERS
         "                     (Input.peek input) )\n"
 
     fun lexerCode {lexerName, tokenType, rules, startRule, whitespaceRule} =
-        let val {grammar, actions} = extractActions rules startRule
+        let val rules = convertAtoms rules
+            val {grammar, actions} = extractActions rules startRule
         in  "functor " ^ lexerName ^ "(Args: sig\n" ^
             "    structure Input: NIPO_LEXER_INPUT\n" ^
             "    structure Token: NIPO_POSITIONED_TOKEN where type t = " ^ tokenType ^ "\n" ^

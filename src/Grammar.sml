@@ -51,9 +51,11 @@ end
 
 structure InputGrammar = struct
     datatype atom
-        = Terminal of string option
-        | NonTerminal of string
-        | Named of string * atom
+        = Var of string
+        | Lit of string
+        | Posix of string
+        | Complement of atom
+        | InNamed of string * atom
 
     type grammar = (string * {atoms: atom list, action: string option} list) list
 

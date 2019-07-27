@@ -11,6 +11,52 @@ end)
 structure TokenStream = NipoLexedInput(Lexer)
 structure Parser = NipoParser(TokenStream)
 
+structure LexerLookahead = Lookahead(CharClass)
+structure LexerAnalysis = GrammarAnalysis(struct
+    structure Grammar = LexerGrammar
+    structure Analyzed = AnalyzedGrammar(Grammar)
+    structure Lookahead = LexerLookahead
+    structure NullableToken = NullableToken(Lookahead)
+    structure FirstSet = TokenSet(NullableToken)
+    structure FollowSet = FollowSet(struct
+        structure Lookahead = Lookahead
+        structure NullableToken = NullableToken
+        structure FirstSet = FirstSet
+    end)
+end)
+structure Lexers = NipoLexers(struct
+    structure Token = CharClass
+    structure Grammar = LexerGrammar
+    structure Parsers = NipoParsers(struct
+        structure Grammar = Grammar
+        structure Lookahead = LexerLookahead
+        structure Analysis = LexerAnalysis
+    end)
+end)
+
+structure ParserLookahead = Lookahead(ParserGrammar.Token)
+structure ParserAnalysis = GrammarAnalysis(struct
+    structure Grammar = ParserGrammar
+    structure Analyzed = AnalyzedGrammar(Grammar)
+    structure Lookahead = ParserLookahead
+    structure NullableToken = NullableToken(Lookahead)
+    structure FirstSet = TokenSet(NullableToken)
+    structure FollowSet = FollowSet(struct
+        structure Lookahead = Lookahead
+        structure NullableToken = NullableToken
+        structure FirstSet = FirstSet
+    end)
+end)
+structure ProperParsers = ProperParsers(struct
+    structure Grammar = ParserGrammar
+    structure Lookahead = ParserLookahead
+    structure Analysis = ParserAnalysis
+end)
+
+val parserCode =
+    fn InputGrammar.Lexer lexer => Lexers.lexerCode lexer
+     | InputGrammar.Parser parser => ProperParsers.parserCode parser
+
 val main =
     fn [filename] =>
         let fun lexAll tokens =
@@ -25,8 +71,7 @@ val main =
             do lexAll tokens
             val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default filename)
             val tokens = TokenStream.tokenize lexerInput
-        in Parser.start__parser tokens
-         ; ()
+        in print (parserCode (Parser.start__parser tokens))
         end
 
 do main (CommandLine.arguments ())
