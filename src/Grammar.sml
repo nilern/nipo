@@ -20,22 +20,46 @@ functor Grammar(Token: LEXEME) :> GRAMMAR
     type grammar = (string * {atoms: atom list, action: string option} list) list
 end
 
-structure LexerGrammar = Grammar(CharClass)
-structure ParserGrammar = Grammar(Token)
+structure LexerGrammar = struct
+    structure Super = Grammar(CharClass)
+    open Super
+
+    type 'grammar glexer =
+        { lexerName: string
+        , tokenType: string
+        , rules: 'grammar
+        , startRule: string
+        , whitespaceRule: string }
+
+    type lexer = grammar glexer
+end
+
+structure ParserGrammar = struct
+    structure Super = Grammar(Token)
+    open Super
+
+    type 'grammar gparser =
+        { parserName: string
+        , tokenType: string
+        , tokenCtors: string list
+        , support: string
+        , rules: 'grammar
+        , startRule: string }
+
+    type parser = grammar gparser
+end
 
 structure InputGrammar = struct
-    type lexer = { lexerName: string
-                 , tokenType: string
-                 , rules: LexerGrammar.grammar
-                 , startRule: string
-                 , whitespaceRule: string }
+    datatype atom
+        = Terminal of string option
+        | NonTerminal of string
+        | Named of string * atom
 
-    type parser = { parserName: string
-                  , tokenType: string
-                  , tokenCtors: string list
-                  , support: string
-                  , rules: ParserGrammar.grammar
-                  , startRule: string }
+    type grammar = (string * {atoms: atom list, action: string option} list) list
+
+    type lexer = grammar LexerGrammar.glexer
+
+    type parser = grammar ParserGrammar.gparser
 
     datatype t
         = Lexer of lexer

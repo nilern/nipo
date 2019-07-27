@@ -2,7 +2,7 @@ signature LEXERS = sig
     structure Token: LEXEME
     structure Grammar: GRAMMAR where type Token.t = Token.t
 
-    val lexerCode: InputGrammar.lexer -> string
+    val lexerCode: LexerGrammar.lexer -> string
 end
 
 functor NipoLexers(Args: sig
