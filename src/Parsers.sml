@@ -48,7 +48,10 @@ end) :> GRAMMAR_ANALYSIS
 
     fun atomFirstSet fiSets =
         fn Terminal token => FirstSet.singleton (NullableToken.Token token)
-         | NonTerminal name => StringMap.lookup (fiSets, name)
+         | NonTerminal name =>
+            (case StringMap.find (fiSets, name)
+             of SOME firsts => firsts
+              | NONE => raise Fail ("missing FIRST set for " ^ name))
          | Named (_, inner) => atomFirstSet fiSets inner
 
     fun producteeFirstSet fiSets {atoms, action = _} =
@@ -167,8 +170,10 @@ end) :> GRAMMAR_ANALYSIS
                            (case internalStartName
                             of SOME internalStartName =>
                                 StringMap.insert ( StringMap.empty, internalStartName
-                                                 , [{lookaheads = (), productees = [{ atoms = [NonTerminal startRule, Terminal NONE]
-                                                                                    , action = SOME startRule } ]}] )
+                                                 , [{ lookaheads = ()
+                                                    , productees = [{ atoms = [ Named (startRule, NonTerminal startRule)
+                                                                              , Terminal NONE ]
+                                                                    , action = SOME startRule } ]}] )
                              | _ => StringMap.empty)
                            grammar
             val (grammar, fiSets) = firstSets grammar
@@ -339,12 +344,50 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
         end
 end
 
-functor ProperParsers(Args: PARSERS_ARGS) = struct
+functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.atom = ParserGrammar.atom) = struct
+    datatype in_atom = datatype InputGrammar.atom
+    datatype atom = datatype ParserGrammar.atom
     structure Analysis = Args.Analysis
     structure Parsers = NipoParsers(Args)
     open Parsers
 
-    fun ctorPredicateDef ctor =
+    fun addTerminalTranslation ((canon, alias), terminals) =
+        if StringMap.inDomain (terminals, canon)
+        then raise Fail ("duplicate token " ^ canon)
+        else let val terminals = StringMap.insert (terminals, canon, canon)
+             in case alias
+                of SOME alias =>
+                    if StringMap.inDomain (terminals, alias)
+                    then raise Fail ("duplicate token alias " ^ alias)
+                    else StringMap.insert (StringMap.insert (terminals, canon, canon), alias, canon)
+                 | NONE => terminals
+             end
+
+    fun terminalTranslation tokenCtors =
+        List.foldl addTerminalTranslation StringMap.empty tokenCtors
+
+    fun nameToAtom terminals name =
+        case StringMap.find (terminals, name)
+        of SOME canonName => Terminal (SOME canonName)
+         | NONE => NonTerminal name
+
+    fun convertAtoms terminals grammar =
+        let val rec convertAtom =
+                fn Var name =>
+                    if Char.isUpper (String.sub (name, 0))
+                    then nameToAtom terminals name
+                    else NonTerminal name
+                 | Lit name => nameToAtom terminals name
+                 | InNamed (name, atom) => Named (name, convertAtom atom)
+
+            fun convertProductee {atoms, action} =
+                {atoms = List.map convertAtom atoms, action}
+            fun convertNt (name, productees) =
+                (name, List.map convertProductee productees)
+        in List.map convertNt grammar
+        end
+
+    fun ctorPredicateDef (ctor, _) =
         "val is" ^ ctor ^ " = fn " ^ ctor ^ " _ => true | _ => false"
 
     fun ctorPredicates tokenCtors =
@@ -359,8 +402,9 @@ functor ProperParsers(Args: PARSERS_ARGS) = struct
         "                       ^ \", got \" ^ Input.Token.toString token'" ^
         "                       ^ \" at \" ^ Input.Pos.toString (Input.pos input) )\n"
 
-    fun parserCode {parserName, tokenType, tokenCtors, support, rules, startRule} =
+    fun parserCode ({parserName, tokenType, tokenCtors, support, rules, startRule}: InputGrammar.parser) =
         let val internalStartName = "start__" ^ startRule
+            val rules = convertAtoms (terminalTranslation tokenCtors) rules
             val grammar = Analysis.analyze rules startRule (SOME internalStartName)
         in "functor " ^ parserName ^ "(Input: NIPO_PARSER_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
            "    " ^ support ^ "\n\n" ^

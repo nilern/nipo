@@ -17,48 +17,51 @@ structure Parsers = ProperParsers(struct
     structure Lookahead = Lookahead
     structure Analysis = Analysis
 end)
-datatype atom = datatype Grammar.atom
+datatype atom = datatype InputGrammar.atom
 
-val token = Terminal o SOME
-fun namedNt name = Named (name, NonTerminal name)
+val token = Var
+val nonTerminal = Var
+fun obvNamed name = InNamed (name, Var name)
 
 val grammar =
-    [ ("parser", [ {atoms = [Named ("parser", NonTerminal "properParser")], action = SOME "InputGrammar.Parser parser"}
-                 , {atoms = [Named ("lexer", NonTerminal "lexer")], action = SOME "InputGrammar.Lexer lexer"} ])
-    , ("properParser", [{ atoms = [ token "Parser", Named ("parserName", token "Id"), token "Where"
-                                  , token "Rules", namedNt "rules" ]
+    [ ("parser", [ {atoms = [InNamed ("parser", nonTerminal "properParser")], action = SOME "InputGrammar.Parser parser"}
+                 , {atoms = [obvNamed "lexer"], action = SOME "InputGrammar.Lexer lexer"} ])
+    , ("properParser", [{ atoms = [ token "Parser", InNamed ("parserName", token "Id"), token "Where"
+                                  , token "Rules", obvNamed "rules" ]
                         , action = SOME ( "{parserName = tokenChars parserName, rules = #rules rules, startRule = #startRule rules"
                                         ^ ", support = \"\", tokenCtors = [], tokenType = \"\"}" ) }])
-    , ("lexer", [{ atoms = [ token "Lexer", Named ("lexerName", token "Id"), token "Where"
-                           , token "Rules", Named ("rules", NonTerminal "rules") ]
+    , ("lexer", [{ atoms = [ token "Lexer", InNamed ("lexerName", token "Id"), token "Where"
+                           , token "Rules", obvNamed "rules" ]
                  , action = SOME ( "{lexerName = tokenChars lexerName, rules = #rules rules, startRule = #startRule rules"
                                  ^ ", tokenType = \"\", whitespaceRule = \"\"}" ) }])
-    , ("rules", [{ atoms = [ Named ("starter", NonTerminal "startRule")
-                           , Named ("others", NonTerminal "auxRules") ]
+    , ("rules", [{ atoms = [ InNamed ("starter", nonTerminal "startRule")
+                           , InNamed ("others", nonTerminal "auxRules") ]
                  , action = SOME "{startRule = #1 starter, rules = starter :: others}" }])
-    , ("auxRules", [ { atoms = [Named ("rule", NonTerminal "rule"), Named ("rules", NonTerminal "auxRules")]
+    , ("auxRules", [ { atoms = [obvNamed "rule", InNamed ("rules", nonTerminal "auxRules")]
                      , action = SOME "rule :: rules" }
                    , { atoms = [], action = SOME "[]" } ])
-    , ("startRule", [{atoms = [token "Start", Named ("rule", NonTerminal "rule")], action = SOME "rule"}])
-    , ("rule", [{ atoms = [Named ("name", token "Id"), token "Eq", Named ("productees", NonTerminal "productees"), token "Semi"]
+    , ("startRule", [{atoms = [token "Start", obvNamed "rule"], action = SOME "rule"}])
+    , ("rule", [{ atoms = [InNamed ("name", token "Id"), token "Eq", InNamed ("productees", nonTerminal "productees"), token "Semi"]
                 , action = SOME "(tokenChars name, productees)" }])
-    , ("productees", [ { atoms = [Named ("productee", NonTerminal "productee"), Named ("productees", NonTerminal "producteesTail")]
+    , ("productees", [ { atoms = [obvNamed "productee", InNamed ("productees", nonTerminal "producteesTail")]
                        , action = SOME "productee :: productees" }
                      , {atoms = [], action = SOME "[]"} ])
-    , ("producteesTail", [ {atoms = [token "Bar", namedNt "productees"], action = SOME "productees"}
+    , ("producteesTail", [ {atoms = [token "Bar", obvNamed "productees"], action = SOME "productees"}
                          , {atoms = [], action = SOME "[]"} ])
-    , ("productee", [{ atoms = [namedNt "atoms", namedNt "optAction"]
+    , ("productee", [{ atoms = [obvNamed "atoms", obvNamed "optAction"]
                      , action = SOME "{atoms = atoms, action = optAction}" }])
-    , ("atoms", [ {atoms = [namedNt "atom", namedNt "atoms"], action = SOME "atom :: atoms"}
+    , ("atoms", [ {atoms = [obvNamed "atom", obvNamed "atoms"], action = SOME "atom :: atoms"}
                 , {atoms = [], action = SOME "[]"} ])
-    , ("atom", [{atoms = [Named ("atom", token "Id")], action = SOME "InputGrammar.Var (tokenChars atom)"}])
-    , ("optAction", [ {atoms = [Named ("action", token "Action")], action = SOME "SOME (tokenChars action)"}
+    , ("atom", [ {atoms = [InNamed ("atom", token "Id")], action = SOME "InputGrammar.Var (tokenChars atom)"}
+               , {atoms = [InNamed ("alias", token "Lit")], action = SOME "InputGrammar.Lit (tokenChars alias)"} ])
+    , ("optAction", [ {atoms = [InNamed ("action", token "Action")], action = SOME "SOME (tokenChars action)"}
                     , {atoms = [], action = SOME "NONE"} ]) ]
 
 val _ = print (Parsers.parserCode { parserName = "NipoParser"
                                   , tokenType = "NipoTokens.t"
-                                  , tokenCtors = [ "Parser", "Lexer", "Id", "Where", "Rules"
-                                                 , "Start", "Eq", "Bar", "Action", "Semi" ]
+                                  , tokenCtors = List.map (fn name => (name, NONE))
+                                                          [ "Parser", "Lexer", "Id", "Lit", "Where", "Rules"
+                                                          , "Start", "Eq", "Bar", "Action", "Semi" ]
                                   , support = "open NipoTokens"
                                   , rules = grammar
                                   , startRule = "parser" })

@@ -41,7 +41,7 @@ structure ParserGrammar = struct
     type 'grammar gparser =
         { parserName: string
         , tokenType: string
-        , tokenCtors: string list
+        , tokenCtors: (string * string option) list
         , support: string
         , rules: 'grammar
         , startRule: string }

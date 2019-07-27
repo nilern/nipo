@@ -11,6 +11,7 @@ structure NipoTokens = struct
         | RBrace of Pos.t
         | Semi of Pos.t
         | Id of Pos.t * string * Pos.t
+        | Lit of Pos.t * string * Pos.t
         | Action of Pos.t * string * Pos.t
 
     type t = token
@@ -28,10 +29,12 @@ structure NipoTokens = struct
          | RBrace pos => pos
          | Semi pos => pos
          | Id (pos, _, _) => pos
+         | Lit (pos, _, _) => pos
          | Action (pos, _, _) => pos
 
     val tokenChars =
          fn Id (_, cs, _) => cs
+          | Lit (_, cs, _) => cs
           | Action (_, cs, _) => cs
 
     val toString =
@@ -46,6 +49,7 @@ structure NipoTokens = struct
          | RBrace _ => "delimiter }"
          | Semi _ => "terminator ;"
          | Id (_, name, _) => "identifier " ^ name
+         | Lit (_, name, _) => "identifier " ^ name
          | Action (_, code, _) => "`" ^ code ^ "`"
 
     val lookaheadToString =

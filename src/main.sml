@@ -68,9 +68,6 @@ val main =
             val input = TextIO.getInstream (TextIO.openIn filename)
             val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default filename)
             val tokens = TokenStream.tokenize lexerInput
-            do lexAll tokens
-            val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default filename)
-            val tokens = TokenStream.tokenize lexerInput
         in print (parserCode (Parser.start__parser tokens))
         end
 
