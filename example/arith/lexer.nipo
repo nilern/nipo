@@ -10,17 +10,11 @@ start tok
     | digits { fn (s, cs, e) => ArithToken.Num (s, valOf (Int.fromString cs), e) }
     ;
 
-digits = digit digitsTail;
+digits = digit optDigits;
 
-digitsTail
-    = digit digitsTail
-    |
-    ;
+optDigits = digits | ;
 
 digit = [[:digit:]];
 
-whitespace ws
-    = [[:space:]] ws
-    |
-    ;
+whitespace ws = [[:space:]] ws | ;
 

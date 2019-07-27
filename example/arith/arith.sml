@@ -15,14 +15,9 @@ fun main () =
     let val input = TextIO.getInstream TextIO.stdIn
         val input = TextIOInput.fromInstream input
         val input = LexerTextInput.fromInner (input, Pos.default "<stdin>")
-        
-        fun lexAll tokens =
-            case TokenStream.pop tokens
-            of SOME token =>
-                ( print (ArithToken.toString token ^ "\n")
-                ; lexAll tokens )
-             | NONE => ()
-    in lexAll (TokenStream.tokenize input)
+        val tokens = TokenStream.tokenize input
+        val res = Parser.start__expr tokens
+    in print (Int.toString res ^ "\n")
     end
 
 val _ = main ()
