@@ -33,39 +33,39 @@ fun charsBetween (first, last) =
         fun loop charCode acc =
             if charCode <= lastCode
             then loop (charCode + 1)
-                      ({atoms = [charLit (Char.chr charCode)], action = NONE} :: acc)
+                      ({productee = [charLit (Char.chr charCode)], action = NONE} :: acc)
             else List.rev acc
     in loop firstCode []
     end
 
 val grammar =
-    [ ("token", [ {atoms = [Var "id"], action = SOME "NipoTokens.fromId"}
-                , { atoms = [Var "escapedId"]
+    [ ("token", [ {productee = [Var "id"], action = SOME "NipoTokens.fromId"}
+                , { productee = [Var "escapedId"]
                   , action = SOME "fn (s, cs, e) => NipoTokens.Lit (s, String.substring (cs, 1, String.size cs - 2), e)" }
-                , {atoms = tokens "->", action = SOME "NipoTokens.Arrow o #1"}
-                , {atoms = [Lit "="], action = SOME "NipoTokens.Eq o #1"}
-                , {atoms = [Lit "|"], action = SOME "NipoTokens.Bar o #1"}
-                , { atoms = [Lit "{", Var "action", Lit "}"]
+                , {productee = tokens "->", action = SOME "NipoTokens.Arrow o #1"}
+                , {productee = [Lit "="], action = SOME "NipoTokens.Eq o #1"}
+                , {productee = [Lit "|"], action = SOME "NipoTokens.Bar o #1"}
+                , { productee = [Lit "{", Var "action", Lit "}"]
                   , action = SOME "fn (s, cs, e) => NipoTokens.Action (s, String.substring (cs, 1, String.size cs - 2), e)" }
-                , { atoms = [Lit "[", Lit "[", Lit ":", Var "posix", Lit ":", Lit "]", Lit "]"],
+                , { productee = [Lit "[", Lit "[", Lit ":", Var "posix", Lit ":", Lit "]", Lit "]"],
                     action = SOME "fn (s, cs, e) => NipoTokens.Posix (s, String.substring (cs, 3, String.size cs - 6), e)" }
-                , {atoms = [Lit ";"], action = SOME "NipoTokens.Semi o #1"} ])
-    , ("id", [{atoms = [Var "alpha", Var "idTail"], action = NONE}])
-    , ("idTail", [ {atoms = [Var "alpha", Var "idTail"], action = NONE}
-                 , {atoms = [], action = NONE} ])
-    , ("escapedId", [{atoms = [Lit "'", Var "freeIdContents", Lit "'"], action = NONE}])
-    , ("freeIdContents", [ {atoms = [Complement (Lit "'"), Var "freeIdContents"], action = NONE}
-                         , {atoms = [], action = NONE} ])
-    , ("alpha", [ {atoms = [Posix "alpha"], action = NONE} ])
-    , ("posix", [ {atoms = [Var "id"], action = NONE} ])
-    , ("action", [ {atoms = [Complement (Lit "}"), Var "action"], action = NONE}
-                 , {atoms = [], action = NONE} ])
-    , ("ws", [ {atoms = [Var "wsChar", Var "ws"], action = NONE}
-             , {atoms = [], action = NONE} ])
-    , ("wsChar", [ {atoms = [Lit " "], action = NONE}
-                 , {atoms = [Lit "\\t"], action = NONE}
-                 , {atoms = [Lit "\\r"], action = NONE}
-                 , {atoms = [Lit "\\n"], action = NONE}]) ]
+                , {productee = [Lit ";"], action = SOME "NipoTokens.Semi o #1"} ])
+    , ("id", [{productee = [Var "alpha", Var "idTail"], action = NONE}])
+    , ("idTail", [ {productee = [Var "alpha", Var "idTail"], action = NONE}
+                 , {productee = [], action = NONE} ])
+    , ("escapedId", [{productee = [Lit "'", Var "freeIdContents", Lit "'"], action = NONE}])
+    , ("freeIdContents", [ {productee = [Complement (Lit "'"), Var "freeIdContents"], action = NONE}
+                         , {productee = [], action = NONE} ])
+    , ("alpha", [ {productee = [Posix "alpha"], action = NONE} ])
+    , ("posix", [ {productee = [Var "id"], action = NONE} ])
+    , ("action", [ {productee = [Complement (Lit "}"), Var "action"], action = NONE}
+                 , {productee = [], action = NONE} ])
+    , ("ws", [ {productee = [Var "wsChar", Var "ws"], action = NONE}
+             , {productee = [], action = NONE} ])
+    , ("wsChar", [ {productee = [Lit " "], action = NONE}
+                 , {productee = [Lit "\\t"], action = NONE}
+                 , {productee = [Lit "\\r"], action = NONE}
+                 , {productee = [Lit "\\n"], action = NONE}]) ]
 
 val _ = print (Lexers.lexerCode { lexerName = "NipoLexer"
                                 , tokenType = "NipoTokens.token"

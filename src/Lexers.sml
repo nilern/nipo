@@ -39,8 +39,8 @@ end) :> LEXERS
                      of Terminal (SOME cc) => Terminal (SOME (CharClass.Not cc)))
                  | InNamed (name, atom) => Named (name, convertAtom atom)
             
-            fun convertProductee {atoms, action} =
-                {atoms = List.map convertAtom atoms, action}
+            fun convertProductee {productee, action} =
+                {productee = List.map convertAtom productee, action}
             fun convertNt (name, productees) =
                 (name, List.map convertProductee productees)
         in List.map convertNt grammar
@@ -49,7 +49,7 @@ end) :> LEXERS
     fun extractActions grammar startRule =
         let val actions = ref []
             val actionCount = ref 0
-            fun extractPredicteeActions name (predictee as {atoms, action}) =
+            fun extractPredicteeActions name (predictee as {productee, action}) =
                 case action
                 of SOME action =>
                     let do if name <> startRule
@@ -59,7 +59,7 @@ end) :> LEXERS
                         val actionIndex = !actionCount
                     in actions := action :: !actions
                      ; actionCount := actionIndex + 1
-                     ; {atoms, action = SOME (Int.toString actionIndex)}
+                     ; {productee, action = SOME (Int.toString actionIndex)}
                     end
                  | NONE => predictee
             val grammar = List.map (fn (name, predictees) =>

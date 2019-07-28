@@ -54,7 +54,7 @@ end) :> GRAMMAR_ANALYSIS
               | NONE => raise Fail ("undefined nonterminal " ^ name))
          | Named (_, inner) => atomFirstSet fiSets inner
 
-    fun producteeFirstSet fiSets {atoms, action = _} =
+    fun producteeFirstSet fiSets {productee, action = _} =
         let val rec atomsFirstSet =
                 fn atom :: atoms =>
                     let val firsts = atomFirstSet fiSets atom
@@ -64,7 +64,7 @@ end) :> GRAMMAR_ANALYSIS
                        else firsts
                     end
                  | [] => FirstSet.singleton NullableToken.Epsilon
-        in atomsFirstSet atoms
+        in atomsFirstSet productee
         end
 
     fun branchFirstSet fiSets productees =
@@ -136,7 +136,7 @@ end) :> GRAMMAR_ANALYSIS
                    | Named (_, inner) => (* HACK: *) #2 (atomIteration (inner, (followSet, sets'))) )
 
             fun producteeIteration followSet (productee, sets') =
-                #2 (List.foldr atomIteration (followSet, sets') (#atoms productee))
+                #2 (List.foldr atomIteration (followSet, sets') (#productee productee))
 
             fun branchIteration sets name ({lookaheads = _, productees}, sets') =
                 let val followSet = StringMap.lookup (sets, name)
@@ -171,7 +171,7 @@ end) :> GRAMMAR_ANALYSIS
                             of SOME internalStartName =>
                                 StringMap.insert ( StringMap.empty, internalStartName
                                                  , [{ lookaheads = ()
-                                                    , productees = [{ atoms = [ Named (startRule, NonTerminal startRule)
+                                                    , productees = [{ productee = [ Named (startRule, NonTerminal startRule)
                                                                               , Terminal NONE ]
                                                                     , action = SOME startRule } ]}] )
                              | _ => StringMap.empty)
@@ -289,8 +289,8 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
         fun atomCode atom = List.map stmtToString (List.rev (atomStmts atom))
     end
 
-    fun producteeCode {atoms, action} =
-        let val stmts = List.concat (List.map atomCode atoms)
+    fun producteeCode {productee, action} =
+        let val stmts = List.concat (List.map atomCode productee)
             val expr = case action
                        of SOME action => action
                         | NONE => "()"
@@ -390,8 +390,8 @@ functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.atom = Par
                  | Lit name => nameToAtom terminals name
                  | InNamed (name, atom) => Named (name, convertAtom atom)
 
-            fun convertProductee {atoms, action} =
-                {atoms = List.map convertAtom atoms, action}
+            fun convertProductee {productee, action} =
+                {productee = List.map convertAtom productee, action}
             fun convertNt (name, productees) =
                 (ntParserName name, List.map convertProductee productees)
         in List.map convertNt grammar

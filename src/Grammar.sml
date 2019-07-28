@@ -5,7 +5,7 @@ signature GRAMMAR = sig
                   | NonTerminal of string
                   | Named of string * atom
 
-    type grammar = (string * {atoms: atom list, action: string option} list) list
+    type grammar = (string * {productee: atom list, action: string option} list) list
 end
 
 functor Grammar(Token: LEXEME) :> GRAMMAR
@@ -17,7 +17,7 @@ functor Grammar(Token: LEXEME) :> GRAMMAR
                   | NonTerminal of string
                   | Named of string * atom
 
-    type grammar = (string * {atoms: atom list, action: string option} list) list
+    type grammar = (string * {productee: atom list, action: string option} list) list
 end
 
 structure LexerGrammar = struct
@@ -57,7 +57,7 @@ structure InputGrammar = struct
         | Complement of atom
         | InNamed of string * atom
 
-    type grammar = (string * {atoms: atom list, action: string option} list) list
+    type grammar = (string * {productee: atom list, action: string option} list) list
 
     type lexer = grammar LexerGrammar.glexer
 
@@ -70,13 +70,13 @@ end
 
 signature ANALYZED_GRAMMAR = sig
     type atom
-    type 'laset branch = {lookaheads: 'laset, productees: {atoms: atom list, action: string option} list}
+    type 'laset branch = {lookaheads: 'laset, productees: {productee: atom list, action: string option} list}
     type 'laset grammar = (string * 'laset branch list) list
 end
 
 functor AnalyzedGrammar(Grammar: GRAMMAR) :> ANALYZED_GRAMMAR where type atom = Grammar.atom = struct
     type atom = Grammar.atom
-    type 'laset branch = {lookaheads: 'laset, productees: {atoms: atom list, action: string option} list}
+    type 'laset branch = {lookaheads: 'laset, productees: {productee: atom list, action: string option} list}
     type 'laset grammar = (string * 'laset branch list) list
 end
 
