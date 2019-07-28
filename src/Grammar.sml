@@ -1,11 +1,14 @@
 signature GRAMMAR = sig
     structure Token: LEXEME
 
-    datatype atom = Terminal of Token.t option
-                  | NonTerminal of string
-                  | Named of string * atom
+    datatype productee
+        = Alt of productee list
+        | Seq of productee list
+        | Named of string * productee
+        | NonTerminal of string
+        | Terminal of Token.t option
 
-    type grammar = (string * {productee: atom list, action: string option} list) list
+    type grammar = (string * {productee: productee, action: string option} list) list
 end
 
 functor Grammar(Token: LEXEME) :> GRAMMAR
@@ -13,11 +16,14 @@ functor Grammar(Token: LEXEME) :> GRAMMAR
 = struct
     structure Token = Token
 
-    datatype atom = Terminal of Token.t option
-                  | NonTerminal of string
-                  | Named of string * atom
+    datatype productee
+        = Alt of productee list
+        | Seq of productee list
+        | Named of string * productee
+        | NonTerminal of string
+        | Terminal of Token.t option
 
-    type grammar = (string * {productee: atom list, action: string option} list) list
+    type grammar = (string * {productee: productee, action: string option} list) list
 end
 
 structure LexerGrammar = struct
@@ -50,14 +56,16 @@ structure ParserGrammar = struct
 end
 
 structure InputGrammar = struct
-    datatype atom
-        = Var of string
+    datatype productee
+        = Alt of productee list
+        | Seq of productee list
+        | Complement of productee
+        | InNamed of string * productee
+        | Var of string
         | Lit of string
         | Posix of string
-        | Complement of atom
-        | InNamed of string * atom
 
-    type grammar = (string * {productee: atom list, action: string option} list) list
+    type grammar = (string * {productee: productee, action: string option} list) list
 
     type lexer = grammar LexerGrammar.glexer
 
@@ -69,14 +77,14 @@ structure InputGrammar = struct
 end
 
 signature ANALYZED_GRAMMAR = sig
-    type atom
-    type 'laset branch = {lookaheads: 'laset, productees: {productee: atom list, action: string option} list}
+    type productee
+    type 'laset branch = {lookaheads: 'laset, productees: {productee: productee, action: string option} list}
     type 'laset grammar = (string * 'laset branch list) list
 end
 
-functor AnalyzedGrammar(Grammar: GRAMMAR) :> ANALYZED_GRAMMAR where type atom = Grammar.atom = struct
-    type atom = Grammar.atom
-    type 'laset branch = {lookaheads: 'laset, productees: {productee: atom list, action: string option} list}
+functor AnalyzedGrammar(Grammar: GRAMMAR) :> ANALYZED_GRAMMAR where type productee = Grammar.productee = struct
+    type productee = Grammar.productee
+    type 'laset branch = {lookaheads: 'laset, productees: {productee: productee, action: string option} list}
     type 'laset grammar = (string * 'laset branch list) list
 end
 

@@ -7,6 +7,7 @@ ann "warnUnused true" in
         Lexeme.sml
         Grammar.sml
         TokenSet.sml
+        Analysis.sml
         Parsers.sml
         Lexers.sml
         ../lib/Input/Pos.sml

@@ -9,21 +9,21 @@ functor NipoLexers(Args: sig
     structure Token: LEXEME where type t = CharClass.t
     structure Grammar: GRAMMAR
         where type Token.t = Token.t
-        where type atom = LexerGrammar.atom
-    structure Parsers: PARSERS where type Grammar.atom = Grammar.atom
+        where type productee = LexerGrammar.productee
+    structure Parsers: PARSERS where type Grammar.productee = Grammar.productee
 end) :> LEXERS
     where type Token.t = Args.Token.t
-    where type Grammar.atom = Args.Grammar.atom
+    where type Grammar.productee = Args.Grammar.productee
 = struct
-    datatype in_atom = datatype InputGrammar.atom
-    datatype atom = datatype LexerGrammar.atom
+    datatype in_productee = datatype InputGrammar.productee
+    datatype productee = datatype LexerGrammar.productee
     
     structure Token = Args.Token
     structure Grammar = Args.Grammar
     structure Parsers = Args.Parsers
 
     fun convertAtoms grammar =
-        let val rec convertAtom =
+        let val rec convertProductee =
                 fn Var name => NonTerminal name
                  | Lit name =>
                     let val c = case Char.fromString name
@@ -35,14 +35,14 @@ end) :> LEXERS
                  | Posix "digit" => Terminal (SOME (CharClass.Posix CharClass.Digit))
                  | Posix "space" => Terminal (SOME (CharClass.Posix CharClass.Space))
                  | Complement atom =>
-                    (case convertAtom atom
+                    (case convertProductee atom
                      of Terminal (SOME cc) => Terminal (SOME (CharClass.Not cc)))
-                 | InNamed (name, atom) => Named (name, convertAtom atom)
+                 | InNamed (name, atom) => Named (name, convertProductee atom)
             
-            fun convertProductee {productee, action} =
-                {productee = List.map convertAtom productee, action}
-            fun convertNt (name, productees) =
-                (name, List.map convertProductee productees)
+            fun convertClause {productee, action} =
+                {productee = convertProductee productee, action}
+            fun convertNt (name, clauses) =
+                (name, List.map convertClause clauses)
         in List.map convertNt grammar
         end
 

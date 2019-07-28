@@ -6,6 +6,7 @@ ann "allowSuccessorML true" in
     Lexeme.sml
     Grammar.sml
     TokenSet.sml
+    Analysis.sml
     Parsers.sml
     BootstrapParser.sml
 end
