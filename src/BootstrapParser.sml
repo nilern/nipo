@@ -66,7 +66,8 @@ val grammar =
     , ("seq", [{productee = InSeq [nonTerminal "atom", nonTerminal "optSeq"], action = SOME "atom :: optSeq"}])
     , ("optSeq", [ {productee = nonTerminal "seq", action = SOME "seq"}
                  , {productee = InSeq [], action = SOME "[]"} ])
-    , ("atom", [ {productee = InNamed ("atom", token "Id"), action = SOME "InputGrammar.Var (tokenChars atom)"}
+    , ("atom", [ {productee = InSeq [token "LParen", nonTerminal "clauses", token "RParen"], action = SOME "InputGrammar.InAlt clauses"}
+               , {productee = InNamed ("atom", token "Id"), action = SOME "InputGrammar.Var (tokenChars atom)"}
                , {productee = InNamed ("alias", token "Lit"), action = SOME "InputGrammar.Lit (tokenChars alias)"}
                , {productee = InNamed ("cclass", token "Posix"), action = SOME "InputGrammar.Posix (tokenChars cclass)"} ])
     , ("optAction", [ {productee = InNamed ("action", token "Action"), action = SOME "SOME (tokenChars action)"}
@@ -76,7 +77,7 @@ val _ = print (Parsers.parserCode { parserName = "NipoParser"
                                   , tokenType = "NipoTokens.t"
                                   , tokenCtors = List.map (fn name => (name, NONE))
                                                           [ "Parser", "Lexer", "Id", "Lit", "Posix", "Where", "Token", "Rules"
-                                                          , "Start", "Whitespace", "Arrow", "Eq", "Bar", "Action", "Semi" ]
+                                                          , "Start", "Whitespace", "Arrow", "Eq", "Bar", "Action", "LParen", "RParen", "Semi" ]
                                   , support = "open NipoTokens"
                                   , rules = grammar
                                   , startRule = "parser" })

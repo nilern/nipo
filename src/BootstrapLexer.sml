@@ -49,6 +49,8 @@ val grammar =
                   , action = SOME "fn (s, cs, e) => NipoTokens.Action (s, String.substring (cs, 1, String.size cs - 2), e)" }
                 , { productee = InSeq [Lit "[", Lit "[", Lit ":", Var "posix", Lit ":", Lit "]", Lit "]"],
                     action = SOME "fn (s, cs, e) => NipoTokens.Posix (s, String.substring (cs, 3, String.size cs - 6), e)" }
+                , {productee = Lit "(", action = SOME "NipoTokens.LParen o #1"}
+                , {productee = Lit ")", action = SOME "NipoTokens.RParen o #1"}
                 , {productee = Lit ";", action = SOME "NipoTokens.Semi o #1"} ])
     , ("id", [{productee = InSeq [Var "alpha", Var "idTail"], action = NONE}])
     , ("idTail", [ {productee = InSeq [Var "alpha", Var "idTail"], action = NONE}

@@ -3,10 +3,14 @@ structure StringMap = BinaryMapFn(type ord_key = string val compare = String.com
 signature GRAMMAR_ANALYSIS = sig
     structure Grammar: GRAMMAR
     structure Analyzed: ANALYZED_GRAMMAR where type productee = Grammar.productee
+    structure FirstSet: TOKEN_SET
     structure LookaheadSet: TOKEN_SET
 
+    val firstSet: FirstSet.set StringMap.map -> Grammar.productee -> FirstSet.set
+    val predictionSet: FirstSet.set -> LookaheadSet.set -> LookaheadSet.set
     val analyze: Grammar.grammar -> string -> string option
               -> LookaheadSet.set Analyzed.branch list StringMap.map
+               * FirstSet.set StringMap.map * LookaheadSet.set StringMap.map
 end
 
 functor GrammarAnalysis(Args: sig
@@ -20,6 +24,8 @@ functor GrammarAnalysis(Args: sig
         where type FirstSet.set = FirstSet.set
 end) :> GRAMMAR_ANALYSIS
     where type Grammar.productee = Args.Grammar.productee
+    where type FirstSet.set = Args.FirstSet.set
+    where type FirstSet.item = Args.FirstSet.item
     where type LookaheadSet.set = Args.FollowSet.set
     where type LookaheadSet.item = Args.FollowSet.item
 = struct
@@ -46,12 +52,12 @@ end) :> GRAMMAR_ANALYSIS
  
     exception Changed
 
-    fun producteeFirstSet fiSets =
+    fun firstSet fiSets =
         fn Alt alts => branchFirstSet fiSets alts
          | Seq seq =>
             let val rec seqFirsts =
                     fn p :: ps =>
-                        let val firsts = producteeFirstSet fiSets p
+                        let val firsts = firstSet fiSets p
                         in if FirstSet.member (firsts, NullableToken.Epsilon)
                            then FirstSet.union ( FirstSet.delete (firsts, NullableToken.Epsilon)
                                                , seqFirsts ps )
@@ -60,7 +66,7 @@ end) :> GRAMMAR_ANALYSIS
                      | [] => FirstSet.singleton NullableToken.Epsilon
             in seqFirsts seq
             end
-         | Named (_, inner) => producteeFirstSet fiSets inner
+         | Named (_, inner) => firstSet fiSets inner
          | Terminal token => FirstSet.singleton (NullableToken.Token token)
          | NonTerminal name =>
             (case StringMap.find (fiSets, name)
@@ -68,7 +74,7 @@ end) :> GRAMMAR_ANALYSIS
               | NONE => raise Fail ("undefined nonterminal " ^ name))
 
     and clauseFirstSet fiSets {productee, action = _} =
-        producteeFirstSet fiSets productee
+        firstSet fiSets productee
 
     and branchFirstSet fiSets productees =
         List.foldl FirstSet.union
@@ -134,7 +140,7 @@ end) :> GRAMMAR_ANALYSIS
                     List.foldl (clauseIteration followSet) sets' alts
                  | Seq seq =>
                     #2 (List.foldr (fn (productee, (followSet, sets')) =>
-                                        ( predictionSet (producteeFirstSet fiSets productee) followSet
+                                        ( predictionSet (firstSet fiSets productee) followSet
                                         , producteeIteration followSet (productee, sets') ))
                                    (followSet, sets') seq)
                  | Named (_, inner) => producteeIteration followSet (inner, sets')
@@ -187,14 +193,15 @@ end) :> GRAMMAR_ANALYSIS
                            grammar
             val (grammar, fiSets) = firstSets grammar
             val foSets = followSets grammar fiSets internalStartName
-        in StringMap.mapi (fn (name, branches) =>
-                               let val followSet = StringMap.lookup (foSets, name)
-                               in List.map (fn {lookaheads, productees} =>
-                                                { lookaheads = predictionSet lookaheads followSet
-                                                , productees })
-                                           branches
-                               end)
-                         grammar
+            val grammar = StringMap.mapi (fn (name, branches) =>
+                                              let val followSet = StringMap.lookup (foSets, name)
+                                              in List.map (fn {lookaheads, productees} =>
+                                                               { lookaheads = predictionSet lookaheads followSet
+                                                               , productees })
+                                                          branches
+                                              end)
+                                         grammar
+        in (grammar, fiSets, foSets)
         end
 end
 

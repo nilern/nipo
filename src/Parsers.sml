@@ -9,16 +9,19 @@ end
 signature PARSERS = sig
     structure Grammar: GRAMMAR
     structure Analyzed: ANALYZED_GRAMMAR where type productee = Grammar.productee
+    structure FirstSet: TOKEN_SET
     structure LookaheadSet: TOKEN_SET where type item = Grammar.Token.t option
 
     val matchCode: string
     val matchPredCode: string
     val recognizerRulesCode: Grammar.grammar -> string -> string
-    val rulesCode: LookaheadSet.set Analyzed.branch list StringMap.map -> string
+    val rulesCode: FirstSet.set StringMap.map -> LookaheadSet.set StringMap.map
+                -> LookaheadSet.set Analyzed.branch list StringMap.map -> string
 end
 
 functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
     where type Grammar.productee = Args.Grammar.productee
+    where type FirstSet.set = Args.Analysis.FirstSet.set
     where type LookaheadSet.set = Args.Analysis.LookaheadSet.set
 = struct
     open BranchCond
@@ -26,8 +29,11 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
     structure Grammar = Args.Grammar
     datatype productee = datatype Grammar.productee
     structure Analysis = Args.Analysis
+    val predictionSet = Analysis.predictionSet
+    val firstSet = Analysis.firstSet
     structure Analyzed = Analysis.Analyzed
     structure Lookahead = Args.Lookahead
+    structure FirstSet = Analysis.FirstSet
     structure LookaheadSet = Analysis.LookaheadSet
     
     (* FIXME: Error messages in these match routines give position after token: *)
@@ -79,91 +85,108 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
 
     fun deeper depth = depth + 4
 
-    fun ntError name =
-        "raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString lookahead ^ \" in " ^ name ^
-        " at \" ^ Input.Pos.toString (Input.pos input))"
+    fun rulesCode fiSets foSets grammar =
+        let fun ntError name =
+                "raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString lookahead ^ \" in " ^ name ^
+                " at \" ^ Input.Pos.toString (Input.pos input))"
 
-    val rec producteeCode =
-        fn Alt alts => raise Fail "unimplemented"
-         | Seq seq => seqCode seq
-         | productee as Named _ => #2 (namedCode productee)
-         | NonTerminal name => [Expr (name ^ " input")]
-         | Terminal lookahead =>
-            [Expr (case Lookahead.matchCode lookahead
-                   of SOME (Matcher.ByValue const) => "match (" ^ const ^ ") input"
-                    | SOME (Matcher.ByPred pred) => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
-                    | SOME Matcher.EOF => "matchEOF input"
-                    | NONE => "()")]
+            fun producteeCode depth name followSet =
+                fn Alt alts =>
+                    [Expr (branchesCode depth name followSet
+                                              (List.map (fn clause as {productee, action = _} =>
+                                                             { lookaheads = predictionSet (firstSet fiSets productee) followSet
+                                                             , productees = [clause] })
+                                                        alts))]
+                 | Seq seq => seqCode depth name followSet seq
+                 | productee as Named _ => #2 (namedCode depth name followSet productee)
+                 | NonTerminal name => [Expr (name ^ " input")]
+                 | Terminal lookahead =>
+                    [Expr (case Lookahead.matchCode lookahead
+                           of SOME (Matcher.ByValue const) => "match (" ^ const ^ ") input"
+                            | SOME (Matcher.ByPred pred) => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
+                            | SOME Matcher.EOF => "matchEOF input"
+                            | NONE => "()")]
 
-    and seqCode = fn seq => List.flatMap producteeCode (List.rev seq)
+            and seqCode depth name followSet seq =
+                let fun step (productee, (stmts, followSet)) =
+                        let val stmts' = producteeCode depth name followSet productee
+                            val firsts = firstSet fiSets productee
+                        in ( stmts @ stmts'
+                           , predictionSet firsts followSet )
+                        end
+                in #1 (List.foldr step ([], followSet) seq)
+                end
 
-    and namedCode =
-        fn Named (name, productee) =>
-            ( SOME name
-            , case namedCode productee
-              of (SOME name', stmts) => Val (name, name') :: stmts
-               | (NONE, Expr expr :: stmts) => Val (name, expr) :: stmts )
-         | productee => (NONE, producteeCode productee)
+            and namedCode depth ntName followSet =
+                fn Named (name, productee) =>
+                    ( SOME name
+                    , case namedCode depth ntName followSet productee
+                      of (SOME name', stmts) => Val (name, name') :: stmts
+                       | (NONE, Expr expr :: stmts) => Val (name, expr) :: stmts )
+                 | productee => (NONE, producteeCode depth ntName followSet productee)
 
-    fun clauseCode depth {productee, action} =
-        let val stmts = List.map stmtToString (List.rev (producteeCode productee))
-            val expr = case action
-                       of SOME action => action
-                        | NONE => "()"
-        in case stmts
-           of [] => expr
-            | _ =>
-               "let " ^ String.concatWith ("\n" ^ indent (deeper depth)) stmts ^ "\n" ^
-               indent depth ^ "in " ^ expr ^ "\n" ^
-               indent depth ^ "end"
+            and clauseCode depth name followSet {productee, action} =
+                let val stmts = List.map stmtToString (List.rev (producteeCode depth name followSet productee))
+                    val expr = case action
+                               of SOME action => action
+                                | NONE => "()"
+                in case stmts
+                   of [] => expr
+                    | _ =>
+                       "let " ^ String.concatWith ("\n" ^ indent (deeper depth)) stmts ^ "\n" ^
+                       indent depth ^ "in " ^ expr ^ "\n" ^
+                       indent depth ^ "end"
+                end
+
+            and branchCode depth name followSet {lookaheads = Pattern pat, productees = [productee]} =
+                pat ^ " =>\n" ^ indent depth ^ clauseCode depth name followSet productee
+
+            and predicateBranchesCode depth name followSet predBranches errorBody =
+                case predBranches
+                of {lookaheads = Predicate pred, productees = [productee]} :: predBranches =>
+                    "if " ^ pred "lookahead" ^ " then\n" ^
+                    indent (deeper depth) ^ clauseCode (deeper depth) name followSet productee ^ "\n" ^
+                    indent depth ^ "else\n" ^
+                    indent (deeper depth) ^ predicateBranchesCode (deeper depth) name followSet predBranches errorBody
+                 | [] => errorBody
+
+            (* FIXME: Detect conflicts *)
+            and branchesCode depth name followSet branches =
+                let val branches = List.map (fn {lookaheads, productees} =>
+                                                 {lookaheads = LookaheadSet.patternCode lookaheads, productees})
+                                            branches
+                    val (patternBranches, predBranches) = List.partition isPatternBranch branches
+                    val (predBranches, defaultBranches) = List.partition isPredicateBranch predBranches
+                    val defaultBranch =
+                        case defaultBranches
+                        of [] => ntError name
+                         | [{productees = [productee], ...}] => clauseCode (deeper depth) name followSet productee
+                in case patternBranches
+                   of [] =>
+                       "let val lookahead = Input.peek input\n" ^
+                       indent depth ^ "in  " ^ predicateBranchesCode (deeper depth) name followSet predBranches defaultBranch ^ "\n" ^
+                       indent depth ^ "end"
+                    | _ =>
+                       "case Input.peek input\n" ^
+                       indent depth ^ "of " ^ String.concatWith ("\n" ^ indent depth ^ " | ")
+                                                                (List.map (branchCode (deeper depth) name followSet) patternBranches) ^ "\n" ^
+                       indent depth ^ " | lookahead =>\n" ^
+                       indent (deeper depth) ^ predicateBranchesCode (deeper depth) name followSet predBranches defaultBranch
+                end
+
+            fun ntCode depth name followSet branches =
+                indent depth ^ "and " ^ name ^ " input =\n" ^
+                indent (deeper depth) ^ branchesCode (deeper depth) name followSet branches
+        in  StringMap.foldli (fn (name, branches, acc) =>
+                                  let val followSet = StringMap.lookup (foSets, name)
+                                  in acc ^ "\n\n" ^ ntCode (deeper 0) name followSet branches
+                                  end)
+                             "" grammar
         end
-
-    fun branchCode depth {lookaheads = Pattern pat, productees = [productee]} =
-        pat ^ " =>\n" ^ indent depth ^ clauseCode depth productee
-
-    fun predicateBranchesCode depth predBranches errorBody =
-        case predBranches
-        of {lookaheads = Predicate pred, productees = [productee]} :: predBranches =>
-            "if " ^ pred "lookahead" ^ " then\n" ^
-            indent (deeper depth) ^ clauseCode (deeper depth) productee ^ "\n" ^
-            indent depth ^ "else\n" ^
-            indent (deeper depth) ^ predicateBranchesCode (deeper depth) predBranches errorBody
-         | [] => errorBody
-
-    (* FIXME: Detect conflicts *)
-    fun branchesCode depth name branches =
-        let val branches = List.map (fn {lookaheads, productees} =>
-                                         {lookaheads = LookaheadSet.patternCode lookaheads, productees})
-                                    branches
-            val (patternBranches, predBranches) = List.partition isPatternBranch branches
-            val (predBranches, defaultBranches) = List.partition isPredicateBranch predBranches
-            val defaultBranch =
-                case defaultBranches
-                of [] => ntError name
-                 | [{productees = [productee], ...}] => clauseCode (deeper depth) productee
-        in case patternBranches
-           of [] =>
-               "let val lookahead = Input.peek input\n" ^
-               indent depth ^ "in  " ^ predicateBranchesCode (deeper depth) predBranches defaultBranch ^ "\n" ^
-               indent depth ^ "end"
-            | _ =>
-               "case Input.peek input\n" ^
-               indent depth ^ "of " ^ String.concatWith ("\n" ^ indent depth ^ " | ")
-                                                        (List.map (branchCode (deeper depth)) patternBranches) ^ "\n" ^
-               indent depth ^ " | lookahead =>\n" ^
-               indent (deeper depth) ^ predicateBranchesCode (deeper depth) predBranches defaultBranch
-        end
-
-    fun ntCode depth name branches =
-        indent depth ^ "and " ^ name ^ " input =\n" ^
-        indent (deeper depth) ^ branchesCode (deeper depth) name branches
-
-    fun rulesCode grammar =
-        StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode (deeper 0) name branches) "" grammar
 
     fun recognizerRulesCode grammar startRule =
-        let val grammar = Analysis.analyze grammar startRule NONE
-        in rulesCode grammar
+        let val (grammar, fiSets, foSets) = Analysis.analyze grammar startRule NONE
+        in rulesCode fiSets foSets grammar
         end
 end
 
@@ -235,13 +258,13 @@ functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.productee 
     fun parserCode ({parserName, tokenType, tokenCtors, support, rules, startRule}: InputGrammar.parser) =
         let val internalStartName = "start__" ^ startRule
             val rules = convertAtoms (terminalTranslation tokenCtors) rules
-            val grammar = Analysis.analyze rules (ntParserName startRule) (SOME internalStartName)
+            val (grammar, fiSets, foSets) = Analysis.analyze rules (ntParserName startRule) (SOME internalStartName)
         in "functor " ^ parserName ^ "(Input: NIPO_PARSER_INPUT where type Token.t = " ^ tokenType ^ ") = struct\n" ^
            "    " ^ support ^ "\n\n" ^
            ctorPredicates tokenCtors ^ "\n\n" ^
            matchPredCode ^ "\n\n" ^
            matchEOFCode ^
-           rulesCode grammar ^
+           rulesCode fiSets foSets grammar ^
            "end"
         end
 end

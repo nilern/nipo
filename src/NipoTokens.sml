@@ -10,6 +10,8 @@ structure NipoTokens = struct
         | Arrow of Pos.t
         | Eq of Pos.t
         | Bar of Pos.t
+        | LParen of Pos.t
+        | RParen of Pos.t
         | LBracket of Pos.t
         | RBracket of Pos.t
         | LBrace of Pos.t
@@ -45,6 +47,8 @@ structure NipoTokens = struct
          | Arrow pos => pos
          | Eq pos => pos
          | Bar pos => pos
+         | LParen pos => pos
+         | RParen pos => pos
          | LBracket pos => pos
          | RBracket pos => pos
          | LBrace pos => pos
@@ -72,6 +76,8 @@ structure NipoTokens = struct
          | Arrow _ => "operator ->"
          | Eq _ => "operator ="
          | Bar _ => "operator |"
+         | LParen _ => "delimiter ("
+         | RParen _ => "delimiter )"
          | LBracket _ => "delimiter ["
          | RBracket _ => "delimiter ]"
          | LBrace _ => "delimiter {"
