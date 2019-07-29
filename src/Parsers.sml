@@ -200,7 +200,7 @@ functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.productee 
 
     fun convertAtoms terminals rules =
         let val rec convertProductee =
-                fn InAlt alts => Alt (List.map convertProductee alts)
+                fn InAlt alts => Alt (List.map convertClause alts)
                  | InSeq seq => Seq (List.map convertProductee seq)
                  | InNamed (name, productee) => Named (name, convertProductee productee)
                  | Var name =>
@@ -209,7 +209,7 @@ functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.productee 
                     else Named (name, NonTerminal (ntParserName name))
                  | Lit name => nameToAtom terminals name
 
-            fun convertClause {productee, action} =
+            and convertClause = fn {productee, action} =>
                 {productee = convertProductee productee, action}
 
             fun convertNt (name, clauses) =

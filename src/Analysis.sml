@@ -47,10 +47,7 @@ end) :> GRAMMAR_ANALYSIS
     exception Changed
 
     fun producteeFirstSet fiSets =
-        fn Alt alts => 
-            List.foldl FirstSet.union
-                       FirstSet.empty
-                       (List.map (producteeFirstSet fiSets) alts)
+        fn Alt alts => branchFirstSet fiSets alts
          | Seq seq =>
             let val rec seqFirsts =
                     fn p :: ps =>
@@ -70,10 +67,10 @@ end) :> GRAMMAR_ANALYSIS
              of SOME firsts => firsts
               | NONE => raise Fail ("undefined nonterminal " ^ name))
 
-    fun clauseFirstSet fiSets {productee, action = _} =
+    and clauseFirstSet fiSets {productee, action = _} =
         producteeFirstSet fiSets productee
 
-    fun branchFirstSet fiSets productees =
+    and branchFirstSet fiSets productees =
         List.foldl FirstSet.union
                    FirstSet.empty
                    (List.map (clauseFirstSet fiSets) productees)
@@ -134,7 +131,7 @@ end) :> GRAMMAR_ANALYSIS
             fun producteeIteration followSet (productee, sets') =
                 case productee
                 of Alt alts =>
-                    List.foldl (producteeIteration followSet) sets' alts
+                    List.foldl (clauseIteration followSet) sets' alts
                  | Seq seq =>
                     #2 (List.foldr (fn (productee, (followSet, sets')) =>
                                         ( predictionSet (producteeFirstSet fiSets productee) followSet
@@ -147,7 +144,7 @@ end) :> GRAMMAR_ANALYSIS
                     in StringMap.insert (sets', name, FollowSet.union (prev, followSet))
                     end
 
-            fun clauseIteration followSet ({productee, action = _}, sets') =
+            and clauseIteration followSet ({productee, action = _}, sets') =
                 producteeIteration followSet (productee, sets')
 
             fun branchIteration sets name ({lookaheads = _, productees}, sets') =

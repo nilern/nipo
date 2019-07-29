@@ -2,13 +2,15 @@ signature GRAMMAR = sig
     structure Token: LEXEME
 
     datatype productee
-        = Alt of productee list
+        = Alt of clause list
         | Seq of productee list
         | Named of string * productee
         | NonTerminal of string
         | Terminal of Token.t option
 
-    type grammar = (string * {productee: productee, action: string option} list) list
+    withtype clause = {productee: productee, action: string option}
+
+    type grammar = (string * clause list) list
 end
 
 functor Grammar(Token: LEXEME) :> GRAMMAR
@@ -17,13 +19,15 @@ functor Grammar(Token: LEXEME) :> GRAMMAR
     structure Token = Token
 
     datatype productee
-        = Alt of productee list
+        = Alt of clause list
         | Seq of productee list
         | Named of string * productee
         | NonTerminal of string
         | Terminal of Token.t option
 
-    type grammar = (string * {productee: productee, action: string option} list) list
+    withtype clause = {productee: productee, action: string option}
+
+    type grammar = (string * clause list) list
 end
 
 structure LexerGrammar = struct
@@ -57,7 +61,7 @@ end
 
 structure InputGrammar = struct
     datatype productee
-        = InAlt of productee list
+        = InAlt of clause list
         | InSeq of productee list
         | Complement of productee
         | InNamed of string * productee
@@ -65,7 +69,9 @@ structure InputGrammar = struct
         | Lit of string
         | Posix of string
 
-    type grammar = (string * {productee: productee, action: string option} list) list
+    withtype clause = {productee: productee, action: string option}
+
+    type grammar = (string * clause list) list
 
     type lexer = grammar LexerGrammar.glexer
 

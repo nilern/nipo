@@ -24,7 +24,7 @@ end) :> LEXERS
 
     fun convertAtoms grammar =
         let val rec convertProductee =
-                fn InAlt alts => Alt (List.map convertProductee alts)
+                fn InAlt alts => Alt (List.map convertClause alts)
                  | InSeq seq => Seq (List.map convertProductee seq)
                  | Var name => NonTerminal name
                  | Lit name =>
@@ -41,8 +41,9 @@ end) :> LEXERS
                      of Terminal (SOME cc) => Terminal (SOME (CharClass.Not cc)))
                  | InNamed (name, atom) => Named (name, convertProductee atom)
             
-            fun convertClause {productee, action} =
+            and convertClause = fn {productee, action} =>
                 {productee = convertProductee productee, action}
+
             fun convertNt (name, clauses) =
                 (name, List.map convertClause clauses)
         in List.map convertNt grammar
