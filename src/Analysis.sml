@@ -136,7 +136,7 @@ end) :> GRAMMAR_ANALYSIS
                 of Alt alts =>
                     List.foldl (producteeIteration followSet) sets' alts
                  | Seq seq =>
-                    #2 (List.foldl (fn (productee, (followSet, sets')) =>
+                    #2 (List.foldr (fn (productee, (followSet, sets')) =>
                                         ( predictionSet (producteeFirstSet fiSets productee) followSet
                                         , producteeIteration followSet (productee, sets') ))
                                    (followSet, sets') seq)

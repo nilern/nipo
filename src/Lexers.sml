@@ -24,7 +24,9 @@ end) :> LEXERS
 
     fun convertAtoms grammar =
         let val rec convertProductee =
-                fn Var name => NonTerminal name
+                fn InAlt alts => Alt (List.map convertProductee alts)
+                 | InSeq seq => Seq (List.map convertProductee seq)
+                 | Var name => NonTerminal name
                  | Lit name =>
                     let val c = case Char.fromString name
                                 of SOME c => c

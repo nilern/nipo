@@ -3,6 +3,7 @@ $(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb
 
 ann "allowSuccessorML true" in
     Util/String.sml
+    Util/List.sml
     Lexeme.sml
     Grammar.sml
     TokenSet.sml

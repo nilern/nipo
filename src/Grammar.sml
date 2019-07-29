@@ -57,8 +57,8 @@ end
 
 structure InputGrammar = struct
     datatype productee
-        = Alt of productee list
-        | Seq of productee list
+        = InAlt of productee list
+        | InSeq of productee list
         | Complement of productee
         | InNamed of string * productee
         | Var of string

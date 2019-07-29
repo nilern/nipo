@@ -75,83 +75,91 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
         fn Val (name, expr) => "val " ^ name ^ " = " ^ expr
          | Expr expr => "val _ = " ^ expr
 
-    local
-        val atomExpr =
-            fn Terminal token => 
-                (case Lookahead.matchCode token
-                 of SOME (Matcher.ByValue const) => "match (" ^ const ^ ") input"
-                  | SOME (Matcher.ByPred pred) => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
-                  | SOME Matcher.EOF => "matchEOF input"
-                  | NONE => "()")
-             | NonTerminal name => name ^ " input"
-             | Named _ => raise Fail "unreachable"
-        val rec atomStmts =
-            fn atom as Terminal _ | atom as NonTerminal _ => [Expr (atomExpr atom)]
-             | Named (name, atom) =>
-                let val stmts = atomStmts atom
-                in case stmts
-                   of Val (name', _) :: _ => Val (name, name') :: stmts
-                    | Expr expr :: stmts => Val (name, expr) :: stmts
-                    | [] => raise Fail "unreachable"
-                end
-    in  
-        fun atomCode atom = List.map stmtToString (List.rev (atomStmts atom))
-    end
+    fun indent depth = String.concat (List.tabulate (depth, (fn _ => " ")))
 
-    fun producteeCode {productee, action} =
-        let val stmts = List.concat (List.map atomCode productee)
+    fun deeper depth = depth + 4
+
+    fun ntError name =
+        "raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString lookahead ^ \" in " ^ name ^
+        " at \" ^ Input.Pos.toString (Input.pos input))"
+
+    val rec producteeCode =
+        fn Alt alts => raise Fail "unimplemented"
+         | Seq seq => seqCode seq
+         | productee as Named _ => #2 (namedCode productee)
+         | NonTerminal name => [Expr (name ^ " input")]
+         | Terminal lookahead =>
+            [Expr (case Lookahead.matchCode lookahead
+                   of SOME (Matcher.ByValue const) => "match (" ^ const ^ ") input"
+                    | SOME (Matcher.ByPred pred) => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
+                    | SOME Matcher.EOF => "matchEOF input"
+                    | NONE => "()")]
+
+    and seqCode = fn seq => List.flatMap producteeCode (List.rev seq)
+
+    and namedCode =
+        fn Named (name, productee) =>
+            ( SOME name
+            , case namedCode productee
+              of (SOME name', stmts) => Val (name, name') :: stmts
+               | (NONE, Expr expr :: stmts) => Val (name, expr) :: stmts )
+         | productee => (NONE, producteeCode productee)
+
+    fun clauseCode depth {productee, action} =
+        let val stmts = List.map stmtToString (List.rev (producteeCode productee))
             val expr = case action
                        of SOME action => action
                         | NONE => "()"
         in case stmts
            of [] => expr
             | _ =>
-               "let " ^ String.concatWith "\n                " stmts ^ "\n" ^
-               "            in " ^ expr ^ "\n" ^
-               "            end"
+               "let " ^ String.concatWith ("\n" ^ indent (deeper depth)) stmts ^ "\n" ^
+               indent depth ^ "in " ^ expr ^ "\n" ^
+               indent depth ^ "end"
         end
 
-    fun branchCode {lookaheads = Pattern pat, productees = [productee]} =
-        pat ^ " =>\n            " ^ producteeCode productee
+    fun branchCode depth {lookaheads = Pattern pat, productees = [productee]} =
+        pat ^ " =>\n" ^ indent depth ^ clauseCode depth productee
 
-    fun predicateBranchesCode predBranches errorBody =
+    fun predicateBranchesCode depth predBranches errorBody =
         case predBranches
         of {lookaheads = Predicate pred, productees = [productee]} :: predBranches =>
-            "            if " ^ pred "lookahead" ^ "\n" ^
-            "            then " ^ producteeCode productee ^ "\n" ^
-            "            else " ^ predicateBranchesCode predBranches errorBody
+            "if " ^ pred "lookahead" ^ " then\n" ^
+            indent (deeper depth) ^ clauseCode (deeper depth) productee ^ "\n" ^
+            indent depth ^ "else\n" ^
+            indent (deeper depth) ^ predicateBranchesCode (deeper depth) predBranches errorBody
          | [] => errorBody
 
     (* FIXME: Detect conflicts *)
-    fun ntCode name branches =
+    fun branchesCode depth name branches =
         let val branches = List.map (fn {lookaheads, productees} =>
                                          {lookaheads = LookaheadSet.patternCode lookaheads, productees})
                                     branches
-            val errorBody = 
-                "            raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString lookahead ^ \" in " ^ name ^
-                " at \" ^ Input.Pos.toString (Input.pos input))"
             val (patternBranches, predBranches) = List.partition isPatternBranch branches
             val (predBranches, defaultBranches) = List.partition isPredicateBranch predBranches
             val defaultBranch =
                 case defaultBranches
-                of [] => errorBody
-                 | [{productees = [productee], ...}] => producteeCode productee
-                 | _ => raise Fail (name ^ " has multiple default branches")
-        in "    and " ^ name ^ " input =\n" ^
-           (case patternBranches
-            of [] =>
-                "        let val lookahead = Input.peek input\n" ^
-                "        in " ^ predicateBranchesCode predBranches defaultBranch ^ "\n" ^
-                "        end"
-             | _ => 
-                "        case Input.peek input\n"
-                ^ "        of " ^ String.concatWith "\n         | " (List.map branchCode patternBranches) ^ "\n"
-                ^ "         | lookahead =>\n"
-                ^ predicateBranchesCode predBranches defaultBranch)
+                of [] => ntError name
+                 | [{productees = [productee], ...}] => clauseCode (deeper depth) productee
+        in case patternBranches
+           of [] =>
+               "let val lookahead = Input.peek input\n" ^
+               indent depth ^ "in  " ^ predicateBranchesCode (deeper depth) predBranches defaultBranch ^ "\n" ^
+               indent depth ^ "end"
+            | _ =>
+               "case Input.peek input\n" ^
+               indent depth ^ "of " ^ String.concatWith ("\n" ^ indent depth ^ " | ")
+                                                        (List.map (branchCode (deeper depth)) patternBranches) ^ "\n" ^
+               indent depth ^ " | lookahead =>\n" ^
+               indent (deeper depth) ^ predicateBranchesCode (deeper depth) predBranches defaultBranch
         end
 
+    fun ntCode depth name branches =
+        indent depth ^ "and " ^ name ^ " input =\n" ^
+        indent (deeper depth) ^ branchesCode (deeper depth) name branches
+
     fun rulesCode grammar =
-        StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode name branches) "" grammar
+        StringMap.foldli (fn (name, branches, acc) => acc ^ "\n\n" ^ ntCode (deeper 0) name branches) "" grammar
 
     fun recognizerRulesCode grammar startRule =
         let val grammar = Analysis.analyze grammar startRule NONE
@@ -190,20 +198,23 @@ functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.productee 
         of SOME canonName => Named (tParsedName canonName, Terminal (SOME canonName))
          | NONE => Named (name, NonTerminal (ntParserName name))
 
-    fun convertAtoms terminals grammar =
-        let val rec convertAtom =
-                fn Var name =>
+    fun convertAtoms terminals rules =
+        let val rec convertProductee =
+                fn InAlt alts => Alt (List.map convertProductee alts)
+                 | InSeq seq => Seq (List.map convertProductee seq)
+                 | InNamed (name, productee) => Named (name, convertProductee productee)
+                 | Var name =>
                     if Char.isUpper (String.sub (name, 0))
                     then nameToAtom terminals name
                     else Named (name, NonTerminal (ntParserName name))
                  | Lit name => nameToAtom terminals name
-                 | InNamed (name, atom) => Named (name, convertAtom atom)
 
-            fun convertProductee {productee, action} =
-                {productee = List.map convertAtom productee, action}
-            fun convertNt (name, productees) =
-                (ntParserName name, List.map convertProductee productees)
-        in List.map convertNt grammar
+            fun convertClause {productee, action} =
+                {productee = convertProductee productee, action}
+
+            fun convertNt (name, clauses) =
+                (ntParserName name, List.map convertClause clauses)
+        in List.map convertNt rules
         end
 
     fun ctorPredicateDef (ctor, _) =

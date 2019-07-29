@@ -25,7 +25,7 @@ end)
 datatype productee = datatype InputGrammar.productee
 
 val charLit = Lit o String.str
-val tokens = Seq o List.map charLit o String.explode
+val tokens = InSeq o List.map charLit o String.explode
 fun charsBetween (first, last) =
     let val firstCode = Char.ord first
         val lastCode = Char.ord last
@@ -45,23 +45,23 @@ val grammar =
                 , {productee = tokens "->", action = SOME "NipoTokens.Arrow o #1"}
                 , {productee = Lit "=", action = SOME "NipoTokens.Eq o #1"}
                 , {productee = Lit "|", action = SOME "NipoTokens.Bar o #1"}
-                , { productee = Seq [Lit "{", Var "action", Lit "}"]
+                , { productee = InSeq [Lit "{", Var "action", Lit "}"]
                   , action = SOME "fn (s, cs, e) => NipoTokens.Action (s, String.substring (cs, 1, String.size cs - 2), e)" }
-                , { productee = Seq [Lit "[", Lit "[", Lit ":", Var "posix", Lit ":", Lit "]", Lit "]"],
+                , { productee = InSeq [Lit "[", Lit "[", Lit ":", Var "posix", Lit ":", Lit "]", Lit "]"],
                     action = SOME "fn (s, cs, e) => NipoTokens.Posix (s, String.substring (cs, 3, String.size cs - 6), e)" }
                 , {productee = Lit ";", action = SOME "NipoTokens.Semi o #1"} ])
-    , ("id", [{productee = Seq [Var "alpha", Var "idTail"], action = NONE}])
-    , ("idTail", [ {productee = Seq [Var "alpha", Var "idTail"], action = NONE}
-                 , {productee = Seq [], action = NONE} ])
-    , ("escapedId", [{productee = Seq [Lit "'", Var "freeIdContents", Lit "'"], action = NONE}])
-    , ("freeIdContents", [ {productee = Seq [Complement (Lit "'"), Var "freeIdContents"], action = NONE}
-                         , {productee = Seq [], action = NONE} ])
+    , ("id", [{productee = InSeq [Var "alpha", Var "idTail"], action = NONE}])
+    , ("idTail", [ {productee = InSeq [Var "alpha", Var "idTail"], action = NONE}
+                 , {productee = InSeq [], action = NONE} ])
+    , ("escapedId", [{productee = InSeq [Lit "'", Var "freeIdContents", Lit "'"], action = NONE}])
+    , ("freeIdContents", [ {productee = InSeq [Complement (Lit "'"), Var "freeIdContents"], action = NONE}
+                         , {productee = InSeq [], action = NONE} ])
     , ("alpha", [ {productee = Posix "alpha", action = NONE} ])
     , ("posix", [ {productee = Var "id", action = NONE} ])
-    , ("action", [ {productee = Seq [Complement (Lit "}"), Var "action"], action = NONE}
-                 , {productee = Seq [], action = NONE} ])
-    , ("ws", [ {productee = Seq [Var "wsChar", Var "ws"], action = NONE}
-             , {productee = Seq [], action = NONE} ])
+    , ("action", [ {productee = InSeq [Complement (Lit "}"), Var "action"], action = NONE}
+                 , {productee = InSeq [], action = NONE} ])
+    , ("ws", [ {productee = InSeq [Var "wsChar", Var "ws"], action = NONE}
+             , {productee = InSeq [], action = NONE} ])
     , ("wsChar", [ {productee = Lit " ", action = NONE}
                  , {productee = Lit "\\t", action = NONE}
                  , {productee = Lit "\\r", action = NONE}
