@@ -12,19 +12,13 @@ token {ArithToken.t}
 
 rules
 
-start expr = term terms { foldl op+ term terms };
+start expr = term terms=plusTerm* { foldl op+ term terms };
 
-terms
-    = '+' term terms { term :: terms }
-    |                { [] }
-    ;
+plusTerm = '+' term { term };
 
-term = factor factors { foldl op* factor factors };
+term = factor factors=timesFactor* { foldl op* factor factors };
 
-factors
-    = '*' factor factors { factor :: factors }
-    |                    { [] }
-    ;
+timesFactor = '*' factor { factor };
 
 factor
     = '(' expr ')' { expr }

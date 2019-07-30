@@ -45,6 +45,9 @@ val grammar =
                 , {productee = tokens "->", action = SOME "NipoTokens.Arrow o #1"}
                 , {productee = Lit "=", action = SOME "NipoTokens.Eq o #1"}
                 , {productee = Lit "|", action = SOME "NipoTokens.Bar o #1"}
+                , {productee = Lit "?", action = SOME "NipoTokens.QMark o #1"}
+                , {productee = Lit "*", action = SOME "NipoTokens.Star o #1"}
+                , {productee = Lit "+", action = SOME "NipoTokens.Plus o #1"}
                 , { productee = InSeq [Lit "{", Var "action", Lit "}"]
                   , action = SOME "fn (s, cs, e) => NipoTokens.Action (s, String.substring (cs, 1, String.size cs - 2), e)" }
                 , { productee = InSeq [Lit "[", Lit "[", Lit ":", Var "posix", Lit ":", Lit "]", Lit "]"],

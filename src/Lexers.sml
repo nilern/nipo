@@ -26,6 +26,9 @@ end) :> LEXERS
         let val rec convertProductee =
                 fn InAlt alts => Alt (List.map convertClause alts)
                  | InSeq seq => Seq (List.map convertProductee seq)
+                 | InOpt inner => Opt (convertProductee inner)
+                 | InMany inner => Many (convertProductee inner)
+                 | InMany1 inner => Many1 (convertProductee inner)
                  | Var name => NonTerminal name
                  | Lit name =>
                     let val c = case Char.fromString name
@@ -108,7 +111,7 @@ end) :> LEXERS
             "    structure Token = Args.Token\n\n" ^
             Parsers.matchCode ^ "\n\n" ^
             Parsers.matchPredCode ^
-            Parsers.recognizerRulesCode grammar startRule ^ "\n\n" ^
+            Parsers.recognizerRulesCode grammar startRule (SOME whitespaceRule) ^ "\n\n" ^
             actionTableCode actions ^ "\n" ^
             driverCode startRule whitespaceRule ^
             "end\n"

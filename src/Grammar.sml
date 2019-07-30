@@ -4,6 +4,9 @@ signature GRAMMAR = sig
     datatype productee
         = Alt of clause list
         | Seq of productee list
+        | Opt of productee
+        | Many of productee
+        | Many1 of productee
         | Named of string * productee
         | NonTerminal of string
         | Terminal of Token.t option
@@ -21,6 +24,9 @@ functor Grammar(Token: LEXEME) :> GRAMMAR
     datatype productee
         = Alt of clause list
         | Seq of productee list
+        | Opt of productee
+        | Many of productee
+        | Many1 of productee
         | Named of string * productee
         | NonTerminal of string
         | Terminal of Token.t option
@@ -63,6 +69,9 @@ structure InputGrammar = struct
     datatype productee
         = InAlt of clause list
         | InSeq of productee list
+        | InOpt of productee
+        | InMany of productee
+        | InMany1 of productee
         | Complement of productee
         | InNamed of string * productee
         | Var of string

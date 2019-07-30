@@ -7,10 +7,8 @@ start tok
     | '*' { ArithToken.Times o #1 }
     | '(' { ArithToken.LParen o #1 }
     | ')' { ArithToken.RParen o #1 }
-    | digits { fn (s, cs, e) => ArithToken.Num (s, valOf (Int.fromString cs), e) }
+    | [[:digit:]]+ { fn (s, cs, e) => ArithToken.Num (s, valOf (Int.fromString cs), e) }
     ;
 
-digits = [[:digit:]] (digits | );
-
-whitespace ws = [[:space:]] ws | ;
+whitespace ws = [[:space:]]*;
 

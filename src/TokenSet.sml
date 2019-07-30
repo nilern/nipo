@@ -32,11 +32,13 @@ functor TokenSet(Token: LEXEME) :> TOKEN_SET where type item = Token.t = struct
             | NONE => "{}"
         end
 
-    val requiresPred = exists (fn tc =>
-                                   case Token.patternCode tc
-                                   of Pattern _ => false
-                                    | Predicate _ => true
-                                    | Default => false)
+    (* TODO: DRY (also found in codegen): *)
+    val isPredicate = fn Predicate _ => true | _ => false
+    val isDefault = fn Default => true | _ => false
+
+    fun requiresPred tcs = 
+        not (exists (isDefault o Token.patternCode) tcs)
+        andalso exists (isPredicate o Token.patternCode) tcs
 
     fun predicateCode tokClasses lookahead =
         valOf (foldl (fn (tc, acc) =>
@@ -61,7 +63,7 @@ functor TokenSet(Token: LEXEME) :> TOKEN_SET where type item = Token.t = struct
                                 | SOME (Predicate _) => raise Fail "unreachable"
                                 | SOME Default => acc
                                 | NONE => SOME (Pattern pat))
-                           | Predicate _ => raise Fail "unreachable"
+                           | Predicate _ => acc (* Just keep going, there is a Default somewhere *)
                            | Default => SOME Default)
                      NONE tokClasses)
 

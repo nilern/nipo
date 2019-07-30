@@ -8,7 +8,7 @@ signature GRAMMAR_ANALYSIS = sig
 
     val firstSet: FirstSet.set StringMap.map -> Grammar.productee -> FirstSet.set
     val predictionSet: FirstSet.set -> LookaheadSet.set -> LookaheadSet.set
-    val analyze: Grammar.grammar -> string -> string option
+    val analyze: Grammar.grammar -> string -> string option -> string option
               -> LookaheadSet.set Analyzed.branch list StringMap.map
                * FirstSet.set StringMap.map * LookaheadSet.set StringMap.map
 end
@@ -66,6 +66,9 @@ end) :> GRAMMAR_ANALYSIS
                      | [] => FirstSet.singleton NullableToken.Epsilon
             in seqFirsts seq
             end
+         | Opt productee | Many productee =>
+            FirstSet.add (firstSet fiSets productee, NullableToken.Epsilon)
+         | Many1 productee => firstSet fiSets productee
          | Named (_, inner) => firstSet fiSets inner
          | Terminal token => FirstSet.singleton (NullableToken.Token token)
          | NonTerminal name =>
@@ -117,13 +120,9 @@ end) :> GRAMMAR_ANALYSIS
         in iterate (StringMap.mapi (fn _ => FirstSet.empty) grammar)
         end
 
-    fun followSets (grammar: first_set Analyzed.branch list StringMap.map) (fiSets: first_set StringMap.map) internalStartName
+    fun followSets (grammar: first_set Analyzed.branch list StringMap.map) (fiSets: first_set StringMap.map) isStart
             : follow_set StringMap.map =
-        let val isStart = case internalStartName
-                          of SOME startRule => (fn name => name = startRule)
-                           | NONE => (fn _ => false)
-
-            fun changed sets sets' =
+        let fun changed sets sets' =
                 ( StringMap.appi (fn (name, set') =>
                                     let val set = StringMap.lookup (sets, name)
                                     in if FollowSet.isSubset (set', set)
@@ -143,6 +142,14 @@ end) :> GRAMMAR_ANALYSIS
                                         ( predictionSet (firstSet fiSets productee) followSet
                                         , producteeIteration followSet (productee, sets') ))
                                    (followSet, sets') seq)
+                 | Opt productee => producteeIteration followSet (productee, sets')
+                 | Many inner | Many1 inner =>
+                    (* The last `inner` is followed by whatever `inner*`/`inner+` is: *)
+                    let val sets' = producteeIteration followSet (inner, sets')
+                        (* The previous `inner`:s can also be followed by FIRST(productee): *)
+                    in producteeIteration (predictionSet (firstSet fiSets productee) followSet)
+                                          (inner, sets')
+                    end
                  | Named (_, inner) => producteeIteration followSet (inner, sets')
                  | Terminal _ => sets'
                  | NonTerminal name =>
@@ -174,7 +181,7 @@ end) :> GRAMMAR_ANALYSIS
                                    grammar)
         end
 
-    fun analyze grammar startRule internalStartName =
+    fun analyze grammar startRule whitespaceRule internalStartName =
         let val grammar =
                 List.foldl (fn ((name, productees), grammar) =>
                                 StringMap.insert ( grammar, name
@@ -192,7 +199,10 @@ end) :> GRAMMAR_ANALYSIS
                              | _ => StringMap.empty)
                            grammar
             val (grammar, fiSets) = firstSets grammar
-            val foSets = followSets grammar fiSets internalStartName
+            val isStart = case internalStartName
+                          of SOME startRule => (fn name => name = startRule)
+                           | NONE => (fn _ => false)
+            val foSets = followSets grammar fiSets isStart
             val grammar = StringMap.mapi (fn (name, branches) =>
                                               let val followSet = StringMap.lookup (foSets, name)
                                               in List.map (fn {lookaheads, productees} =>
