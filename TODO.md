@@ -4,7 +4,7 @@
 - [x] Successfully parsing example grammar specs
 - [x] Nested alternations (for e.g. manual left-factoring)
 - [x] ?*+ operators
-- [ ] `pos` pseudo atom to get positions in proper parsers
+- [x] `pos` pseudo atom to get positions in proper parsers
     * [ ] Use in `SelfParser`
 - [ ] Conflict detection
 - [ ] PLL (parse lvals!)

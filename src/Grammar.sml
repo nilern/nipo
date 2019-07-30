@@ -10,6 +10,7 @@ signature GRAMMAR = sig
         | Named of string * productee
         | NonTerminal of string
         | Terminal of Token.t option
+        | Pos
 
     withtype clause = {productee: productee, action: string option}
 
@@ -30,6 +31,7 @@ functor Grammar(Token: LEXEME) :> GRAMMAR
         | Named of string * productee
         | NonTerminal of string
         | Terminal of Token.t option
+        | Pos
 
     withtype clause = {productee: productee, action: string option}
 
@@ -77,6 +79,7 @@ structure InputGrammar = struct
         | Var of string
         | Lit of string
         | Posix of string
+        | InPos
 
     withtype clause = {productee: productee, action: string option}
 

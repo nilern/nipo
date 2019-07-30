@@ -84,7 +84,8 @@ val grammar =
                  , action = SOME "res" } ])
     , ("core", [ {productee = InSeq [token "LParen", nonTerminal "clauses", token "RParen"], action = SOME "InputGrammar.InAlt clauses"}
                , {productee = InNamed ("alias", token "Lit"), action = SOME "InputGrammar.Lit (tokenChars alias)"}
-               , {productee = InNamed ("cclass", token "Posix"), action = SOME "InputGrammar.Posix (tokenChars cclass)"} ])
+               , {productee = InNamed ("cclass", token "Posix"), action = SOME "InputGrammar.Posix (tokenChars cclass)"}
+               , {productee = token "Pos", action = SOME "InputGrammar.InPos"} ])
     , ("optAction", [ {productee = InNamed ("action", token "Action"), action = SOME "SOME (tokenChars action)"}
                     , {productee = InSeq [], action = SOME "NONE"} ]) ]
 
@@ -92,7 +93,7 @@ val _ = print (Parsers.parserCode { parserName = "NipoParser"
                                   , tokenType = "NipoTokens.t"
                                   , tokenCtors = List.map (fn name => (name, NONE))
                                                           [ "Parser", "Lexer", "Id", "Lit", "Posix", "Where", "Token", "Rules"
-                                                          , "Start", "Whitespace", "Arrow", "Eq", "Bar", "QMark", "Star", "Plus"
+                                                          , "Start", "Whitespace", "Arrow", "Eq", "Bar", "QMark", "Star", "Plus", "Pos"
                                                           , "Action", "LParen", "RParen", "Semi" ]
                                   , support = "open NipoTokens"
                                   , rules = grammar

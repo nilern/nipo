@@ -23,6 +23,7 @@ structure NipoTokens = struct
         | Id of Pos.t * string * Pos.t
         | Lit of Pos.t * string * Pos.t
         | Posix of Pos.t * string * Pos.t
+        | Pos of Pos.t
         | Action of Pos.t * string * Pos.t
 
     type t = token
@@ -37,6 +38,7 @@ structure NipoTokens = struct
          | "rules" => Rules s
          | "start" => Start s
          | "whitespace" => Whitespace s
+         | "pos" => Pos s
          | _ => Id span
 
     val startPos =
@@ -63,6 +65,7 @@ structure NipoTokens = struct
          | Id (pos, _, _) => pos
          | Lit (pos, _, _) => pos
          | Posix (pos, _, _) => pos
+         | Pos pos => pos (* Uff! *)
          | Action (pos, _, _) => pos
 
     val tokenChars =
@@ -95,6 +98,7 @@ structure NipoTokens = struct
          | Id (_, name, _) => "identifier " ^ name
          | Lit (_, name, _) => "identifier " ^ name
          | Posix (_, name, _) => "[:" ^ name ^ ":]"
+         | Pos _ => "keyword pos"
          | Action (_, code, _) => "`" ^ code ^ "`"
 
     val lookaheadToString =

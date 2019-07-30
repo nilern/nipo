@@ -75,6 +75,7 @@ end) :> GRAMMAR_ANALYSIS
             (case StringMap.find (fiSets, name)
              of SOME firsts => firsts
               | NONE => raise Fail ("undefined nonterminal " ^ name))
+         | Pos => FirstSet.singleton NullableToken.Epsilon
 
     and clauseFirstSet fiSets {productee, action = _} =
         firstSet fiSets productee
@@ -156,6 +157,7 @@ end) :> GRAMMAR_ANALYSIS
                     let val prev = StringMap.lookup (sets', name)
                     in StringMap.insert (sets', name, FollowSet.union (prev, followSet))
                     end
+                 | Pos => sets'
 
             and clauseIteration followSet ({productee, action = _}, sets') =
                 producteeIteration followSet (productee, sets')

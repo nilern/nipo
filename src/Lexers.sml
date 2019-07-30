@@ -43,6 +43,7 @@ end) :> LEXERS
                     (case convertProductee atom
                      of Terminal (SOME cc) => Terminal (SOME (CharClass.Not cc)))
                  | InNamed (name, atom) => Named (name, convertProductee atom)
+                 | InPos => Pos
             
             and convertClause = fn {productee, action} =>
                 {productee = convertProductee productee, action}

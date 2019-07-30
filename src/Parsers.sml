@@ -114,6 +114,7 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
                             | SOME (Matcher.ByPred pred) => "matchPred (fn lookahead => " ^ pred "lookahead" ^ ") input"
                             | SOME Matcher.EOF => "matchEOF input"
                             | NONE => "()")]
+                 | Pos => [Val ("pos", "Input.pos input")]
 
             and altCode depth name followSet named alts = [Expr (altExpr depth name followSet named alts)]
 
@@ -304,6 +305,7 @@ functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.productee 
                     then nameToAtom terminals name
                     else Named (name, NonTerminal (ntParserName name))
                  | Lit name => nameToAtom terminals name
+                 | InPos => Pos
 
             and convertClause = fn {productee, action} =>
                 {productee = convertProductee productee, action}
