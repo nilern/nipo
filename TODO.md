@@ -6,7 +6,7 @@
 - [x] ?*+ operators
 - [x] `pos` pseudo atom to get positions in proper parsers
     * [ ] Use in `SelfParser`
-- [ ] Comments
+- [x] Comments
 - [x] Support code for lexers, just like proper parsers have
 - [ ] Enable braces inside actions
 - [ ] Error on missing lexer start rule actions

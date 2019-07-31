@@ -65,12 +65,12 @@ val grammar =
     , ("posix", [ {productee = Var "id", action = NONE} ])
     , ("action", [ {productee = InSeq [Complement (Lit "}"), Var "action"], action = NONE}
                  , {productee = InSeq [], action = NONE} ])
-    , ("ws", [ {productee = InSeq [Var "wsChar", Var "ws"], action = NONE}
+    , ("ws", [ {productee = InSeq [ InAlt [ {productee = Var "wsChar", action = NONE}
+                                          , {productee = Var "comment", action = NONE} ]
+                                  , Var "ws"], action = NONE}
              , {productee = InSeq [], action = NONE} ])
-    , ("wsChar", [ {productee = Lit " ", action = NONE}
-                 , {productee = Lit "\\t", action = NONE}
-                 , {productee = Lit "\\r", action = NONE}
-                 , {productee = Lit "\\n", action = NONE}]) ]
+    , ("wsChar", [{productee = Posix "space", action = NONE}])
+    , ("comment", [{productee = InSeq [Lit "#", InMany (Complement (Lit "\\n"))], action = NONE}]) ]
 
 val _ = print (Lexers.lexerCode { lexerName = "NipoLexer"
                                 , tokenType = "NipoTokens.token"
