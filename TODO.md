@@ -8,9 +8,11 @@
     * [ ] Use in `SelfParser`
 - [x] Comments
 - [x] Support code for lexers, just like proper parsers have
+- [ ] `[^]` syntax for lexers
 - [ ] Enable braces inside actions
 - [ ] Error on missing lexer start rule actions
 - [ ] Conflict detection
+- [ ] "Unexpected Foo, was expecting one of {Bar, Baz}"
 - [ ] Move foo -> parseFoo transformation after conflict detection
 - [ ] Emit line number directives
 - [ ] PLL (parse lvals!)
