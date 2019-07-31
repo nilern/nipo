@@ -97,7 +97,7 @@ end) :> LEXERS
         "                          end)\n" ^
         "                     (Input.peek input) )\n"
 
-    fun lexerCode {lexerName, tokenType, rules, startRule, whitespaceRule} =
+    fun lexerCode {lexerName, tokenType, support, rules, startRule, whitespaceRule} =
         let val rules = convertAtoms rules
             val {grammar, actions} = extractActions rules startRule
         in  "functor " ^ lexerName ^ "(Args: sig\n" ^
@@ -110,6 +110,7 @@ end) :> LEXERS
             "= struct\n" ^
             "    structure Input = Args.Input\n" ^
             "    structure Token = Args.Token\n\n" ^
+            "    " ^ support ^ "\n\n" ^
             Parsers.matchCode ^ "\n\n" ^
             Parsers.matchPredCode ^
             Parsers.recognizerRulesCode grammar startRule (SOME whitespaceRule) ^ "\n\n" ^

@@ -45,6 +45,7 @@ structure LexerGrammar = struct
     type 'grammar glexer =
         { lexerName: string
         , tokenType: string
+        , support: string
         , rules: 'grammar
         , startRule: string
         , whitespaceRule: string }

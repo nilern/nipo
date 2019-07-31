@@ -32,10 +32,11 @@ val grammar =
                                         ^ ", support = support, tokenCtors = #ctors tokens, tokenType = #typ tokens}" ) }])
     , ("lexer", [{ productee = InSeq [ token "Lexer", InNamed ("lexerName", token "Id")
                            , token "Arrow", InNamed ("tokenType", token "Action"), token "Where"
+                           , nonTerminal "support"
                            , token "Rules", Var "rules"
                            , Var "whitespaceRule" ]
                  , action = SOME ( "{lexerName = tokenChars lexerName, rules = #rules rules @ [whitespaceRule], startRule = #startRule rules"
-                                 ^ ", tokenType = tokenChars tokenType, whitespaceRule = #1 whitespaceRule}" ) }])
+                                 ^ ", support = support, tokenType = tokenChars tokenType, whitespaceRule = #1 whitespaceRule}" ) }])
     , ("support", [ {productee = InSeq [InNamed ("supportHeader", token "Action")], action = SOME "tokenChars supportHeader"}
                   , {productee = InSeq [], action = SOME "\"\""} ])
     , ("tokens", [{ productee = InSeq [token "Token", InNamed ("typ", token "Action"), token "Eq", Var "tokenSpecs", token "Semi"]

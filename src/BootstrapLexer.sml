@@ -74,6 +74,7 @@ val grammar =
 
 val _ = print (Lexers.lexerCode { lexerName = "NipoLexer"
                                 , tokenType = "NipoTokens.token"
+                                , support = ""
                                 , rules = grammar
                                 , startRule = "token"
                                 , whitespaceRule = "ws" })
