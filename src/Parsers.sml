@@ -172,8 +172,9 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
                     do fiSets := StringMap.insert (!fiSets, loopName, firstSet (!fiSets) (Many1 inner))
                 in [Expr ("let fun " ^ loopName ^ " inner =\n" ^
                           indent depth' ^ "let " ^ String.concatWith ("\n" ^ indent (deeper depth'))
-                                                                     (List.map stmtToString (producteeCode (deeper depth') name followSet named 
-                                                                                                           (Named (elemName, inner)))) ^ "\n" ^
+                                                                     (List.map stmtToString
+                                                                               (List.rev (producteeCode (deeper depth') name followSet named 
+                                                                                                        (Named (elemName, inner))))) ^ "\n" ^
                           indent depth' ^ "in  " ^ altExpr (deeper depth') name followSet named
                                                            [ { productee = Named (elemsName, NonTerminal loopName)
                                                              , action = if named

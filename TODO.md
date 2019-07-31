@@ -12,6 +12,7 @@
 - [ ] Error on missing lexer start rule actions
 - [ ] Conflict detection
 - [ ] Move foo -> parseFoo transformation after conflict detection
+- [ ] Emit line number directives
 - [ ] PLL (parse lvals!)
 - [ ] (Sane) backtracking (parse patterns!)
 
