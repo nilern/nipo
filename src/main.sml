@@ -68,7 +68,16 @@ val main =
             val input = TextIO.getInstream (TextIO.openIn filename)
             val lexerInput = LexerTextInput.fromInner (TextIOInput.fromInstream input, Pos.default filename)
             val tokens = TokenStream.tokenize lexerInput
-        in print (parserCode (Parser.start__parser tokens))
+            open OS.Process
+        in ( print (parserCode (Parser.start__parser tokens))
+           ; exit success )
+           handle
+               | Lexers.Conflicts conflicts =>
+                   ( printErrLine (Lexers.formatConflicts conflicts)
+                   ; exit failure )
+               | ProperParsers.Conflicts conflicts =>
+                   ( printErrLine (ProperParsers.formatConflicts conflicts)
+                   ; exit failure )
         end
 
 do main (CommandLine.arguments ())

@@ -70,6 +70,20 @@ structure CharClass = struct
          | (Space, Space) => EQUAL
          | (Space, Alpha | Digit) => GREATER
 
+    val classesOverlap =
+        fn (Alpha, Alpha) => true
+         | (Alpha, _) => false
+         | (Digit, Digit) => true
+         | (Digit, _) => false
+         | (Space, Space) => true
+         | (Space, _) => false
+
+    fun charInClass cc c =
+        case cc
+        of Alpha => Char.isAlpha c
+         | Digit => Char.isDigit c
+         | Space => Char.isSpace c
+
     datatype t = Singleton of char
                | Posix of posix
                | Not of t
@@ -92,9 +106,20 @@ structure CharClass = struct
 
     val overlap =
         fn (Singleton c, Singleton c') => c = c'
-         | (Singleton c, Posix Alpha)
-         | (Posix Alpha, Singleton c) => Char.isAlpha c
-         | (Posix Alpha, Posix Alpha) => true
+         | (Singleton c, Posix cc) => charInClass cc c
+         | (Singleton c, Not t) =>
+            (case t
+             of Singleton c' => c <> c'
+              |_ => raise Fail "unimplemented")
+         | (Posix cc, Singleton c) => charInClass cc c
+         | (Posix cc, Posix cc') => classesOverlap (cc, cc')
+         | (Posix cc, Not t) => raise Fail "unimplemented"
+         | (Not t, Singleton c) =>
+            (case t
+             of Singleton c' => c <> c'
+              |_ => raise Fail "unimplemented")
+         | (Not t, Posix cc) => raise Fail "unimplemented"
+         | (Not t, Not t') => raise Fail "unimplemented"
 
     val rec patternCode =
         fn Singleton c => Pattern ("#\"" ^ Char.toString c ^ "\"")

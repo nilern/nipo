@@ -4,7 +4,14 @@ signature GRAMMAR_ANALYSIS = sig
     structure Grammar: GRAMMAR
     structure Analyzed: ANALYZED_GRAMMAR where type posductee = Grammar.posductee
     structure FirstSet: TOKEN_SET
-    structure LookaheadSet: TOKEN_SET
+    structure LookaheadSet: FOLLOW_SET
+
+    type conflict =
+        { name: string
+        , conflict: LookaheadSet.set Analyzed.branch * LookaheadSet.set Analyzed.branch }
+    exception Conflicts of conflict list
+
+    val formatConflicts: conflict list -> string
 
     val firstSet: FirstSet.set StringMap.map -> Grammar.posductee -> FirstSet.set
     val predictionSet: FirstSet.set -> LookaheadSet.set -> LookaheadSet.set
@@ -43,6 +50,22 @@ end) :> GRAMMAR_ANALYSIS
     structure LookaheadSet = FollowSet
     type follow_set = FollowSet.set
     type lookahead_set = follow_set
+
+    type conflict =
+        { name: string
+        , conflict: LookaheadSet.set Analyzed.branch * LookaheadSet.set Analyzed.branch }
+    exception Conflicts of conflict list
+
+    fun formatConflict ( { name
+                         , conflict = ( {lookaheads, productees = [productee]}
+                                      , {lookaheads = lookaheads', productees = [productee']} ) }
+                       : conflict ) =
+        "Conflict within " ^ name ^ " between\n" ^
+        "    " ^ LookaheadSet.toString lookaheads ^ " in " ^ Pos.toString (#pos (#productee productee)) ^ "\n" ^
+        "and " ^ LookaheadSet.toString lookaheads ^ " in " ^ Pos.toString (#pos (#productee productee))
+
+    fun formatConflicts conflicts =
+        String.concatWith "\n\n" (List.map formatConflict conflicts)
 
     fun predictionSet firstSet followSet =
         if FirstSet.member (firstSet, NullableToken.Epsilon)

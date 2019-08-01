@@ -24,6 +24,8 @@ structure Lexers = NipoLexers(struct
 end)
 datatype productee = datatype InputGrammar.productee
 
+fun printErrLine s = TextIO.output (TextIO.stdErr, s ^ "\n")
+
 val pos = Pos.default "BootstrapLexer.sml"
 fun nonTerminal name = {pos, v = Var name}
 fun token cs = {pos, v = Lit cs}
@@ -72,16 +74,23 @@ val grammar =
     , ("action", [ {productee = seq [complement (token "}"), nonTerminal "action"], action = NONE}
                  , {productee = seq [], action = NONE} ])
     , ("ws", [ {productee = seq [ alt [ {productee = nonTerminal "wsChar", action = NONE}
-                                        , {productee = nonTerminal "comment", action = NONE} ]
+                                      , {productee = nonTerminal "comment", action = NONE} ]
                                 , nonTerminal "ws"], action = NONE}
              , {productee = seq [], action = NONE} ])
     , ("wsChar", [{productee = {pos, v = Posix "space"}, action = NONE}])
     , ("comment", [{productee = seq [token "#", {pos, v = InMany (complement (token "\\n"))}], action = NONE}]) ]
 
-val _ = print (Lexers.lexerCode { lexerName = "NipoLexer"
+open OS.Process
+val _ =
+    ( print (Lexers.lexerCode { lexerName = "NipoLexer"
                                 , tokenType = "NipoTokens.token"
                                 , support = ""
                                 , rules = grammar
                                 , startRule = "token"
                                 , whitespaceRule = "ws" })
+    ; exit success )
+    handle
+        | Analysis.Conflicts conflicts =>
+            ( printErrLine (Analysis.formatConflicts conflicts)
+            ; exit failure )
 

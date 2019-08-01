@@ -10,7 +10,7 @@ signature PARSERS = sig
     structure Grammar: GRAMMAR
     structure Analyzed: ANALYZED_GRAMMAR where type posductee = Grammar.posductee
     structure FirstSet: TOKEN_SET
-    structure LookaheadSet: TOKEN_SET where type item = Grammar.Token.t option
+    structure LookaheadSet: FOLLOW_SET where type item = Grammar.Token.t option
 
     val matchCode: string
     val matchPredCode: string
@@ -73,6 +73,12 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
         fn {lookaheads = Pattern _, ...} => false
          | {lookaheads = Predicate _, ...} => true
          | {lookaheads = Default, ...} => false
+
+   (* HACK: Global variable, only works because this is a batch utility: *)
+    val conflicts = ref []
+
+    fun reportConflict name conflict =
+        conflicts := !conflicts @ [{name, conflict}]
 
     datatype stmt = Val of string * string
                   | Expr of string
@@ -226,9 +232,9 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
                     indent (deeper depth) ^ predicateBranchesCode (deeper depth) name followSet named predBranches errorBody
                  | [] => errorBody
 
-            (* FIXME: Detect conflicts *)
             and branchesCode depth name followSet named branches =
-                let val branches = List.map (fn {lookaheads, productees} =>
+                let do checkConflicts name branches
+                    val branches = List.map (fn {lookaheads, productees} =>
                                                  {lookaheads = LookaheadSet.patternCode lookaheads, productees})
                                             branches
                     val (patternBranches, predBranches) = List.partition isPatternBranch branches
@@ -260,9 +266,27 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
                              "" grammar
         end
 
+    (* TODO: Separate FIRST/FIRST, FIRST/FOLLOW and FOLLOW/FOLLOW conflicts: *)
+    and checkConflicts name branches =
+        let fun checkConflict (branch as {lookaheads, ...}) (branch' as {lookaheads = lookaheads', ...}) =
+                if LookaheadSet.overlap (lookaheads, lookaheads')
+                then reportConflict name (branch, branch')
+                else ()
+
+            val rec checkCombinations =
+                fn branch :: branches =>
+                    ( List.app (checkConflict branch) branches
+                    ; checkCombinations branches )
+                 | [] => ()
+        in checkCombinations branches
+        end
+
     fun recognizerRulesCode grammar startRule whitespaceRule =
         let val (grammar, fiSets, foSets) = Analysis.analyze grammar startRule whitespaceRule NONE
-        in rulesCode fiSets foSets grammar
+            val code = rulesCode fiSets foSets grammar
+        in case !conflicts
+           of [] => code
+            | conflicts => raise Analysis.Conflicts conflicts
         end
 end
 
