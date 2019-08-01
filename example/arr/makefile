@@ -1,11 +1,12 @@
-arr: arr.sml arr.mlb ../../src/nipo.sml
-	mlton -const 'Exn.keepHistory true' arr.mlb
+NIPO = ../../src/nipo
 
-.PHONY: run
-run: arr
-	./arr
+ArrLexer.sml: lexer.nipo
+	$(NIPO) $< > $@
 
-.PHONY: clean
+ArrParser.sml: parser.nipo
+	$(NIPO) $< > $@
+
+.PHONY clean:
 clean:
-	rm -f arr
+	rm -rf ArrLexer.sml ArrParser.sml
 

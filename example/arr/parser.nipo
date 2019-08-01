@@ -1,0 +1,23 @@
+parser ArrParser where
+
+token {ArrTokens.t}
+    = Eq '='
+    | LBracket '['
+    | RBracket ']'
+    | Id
+    | Int
+    ;
+
+rules
+
+start stmt
+    = lval '=' expr
+    | expr
+    ;
+
+lval = Id '[' expr ']' ;
+
+expr = Id '[' expr ']'
+     | Int
+     ;
+

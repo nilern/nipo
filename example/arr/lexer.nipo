@@ -1,0 +1,16 @@
+lexer ArrLexer -> {ArrTokens.t} where
+
+{ open ArrTokens }
+
+rules
+
+start tok
+    = '[' { LBracket o #1 }
+    | ']' { RBracket o #1 }
+    | '=' { Eq o #1 }
+    | [[:alpha:]]+ { Id }
+    | [[:digit:]]+ { fn (s, cs, e) => Int (s, valOf (Int.fromString cs), e) }
+    ;
+
+whitespace ws = [[:space:]]* ;
+

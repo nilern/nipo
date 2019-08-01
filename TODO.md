@@ -9,6 +9,7 @@
 - [x] Comments
 - [x] Support code for lexers, just like proper parsers have
 - [ ] `[^]` syntax for lexers
+- [ ] "foo" = 'f' 'o' 'o'
 - [ ] Enable braces inside actions
 - [ ] Error on missing lexer start rule actions
 - [ ] Conflict detection
