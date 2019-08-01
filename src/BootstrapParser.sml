@@ -19,76 +19,88 @@ structure Parsers = ProperParsers(struct
 end)
 datatype in_productee = datatype InputGrammar.productee
 
-val token = Var
-val nonTerminal = Var
+val pos = Pos.default "BootstrapParser.sml"
+fun token cs = {pos, v = Var cs}
+fun nonTerminal cs = {pos, v = Var cs}
+fun named (name, p) = {pos, v = InNamed (name, p)}
+fun seq ps = {pos, v = InSeq ps}
+fun alt ps = {pos, v = InAlt ps}
+val getPos = {pos, v = InPos}
 
 val grammar =
-    [ ("parser", [ {productee = InSeq [InNamed ("parser", nonTerminal "properParser")], action = SOME "InputGrammar.Parser parser"}
-                 , {productee = InSeq [Var "lexer"], action = SOME "InputGrammar.Lexer lexer"} ])
-    , ("properParser", [{ productee = InSeq [ token "Parser", InNamed ("parserName", token "Id"), token "Where"
-                                  , Var "support", Var "tokens"
-                                  , token "Rules", Var "rules" ]
+    [ ("parser", [ {productee = nonTerminal "properParser", action = SOME "InputGrammar.Parser properParser"}
+                 , {productee = nonTerminal "lexer", action = SOME "InputGrammar.Lexer lexer"} ])
+    , ("properParser", [{ productee = seq [ token "Parser", named ("parserName", token "Id"), token "Where"
+                                          , nonTerminal "support", nonTerminal "tokens"
+                                          , token "Rules", nonTerminal "rules" ]
                         , action = SOME ( "{parserName = tokenChars parserName, rules = #rules rules, startRule = #startRule rules"
                                         ^ ", support = support, tokenCtors = #ctors tokens, tokenType = #typ tokens}" ) }])
-    , ("lexer", [{ productee = InSeq [ token "Lexer", InNamed ("lexerName", token "Id")
-                           , token "Arrow", InNamed ("tokenType", token "Action"), token "Where"
-                           , nonTerminal "support"
-                           , token "Rules", Var "rules"
-                           , Var "whitespaceRule" ]
+    , ("lexer", [{ productee = seq [ token "Lexer", named ("lexerName", token "Id")
+                                     , token "Arrow", named ("tokenType", token "Action"), token "Where"
+                                     , nonTerminal "support"
+                                     , token "Rules", nonTerminal "rules"
+                                     , nonTerminal "whitespaceRule" ]
                  , action = SOME ( "{lexerName = tokenChars lexerName, rules = #rules rules @ [whitespaceRule], startRule = #startRule rules"
                                  ^ ", support = support, tokenType = tokenChars tokenType, whitespaceRule = #1 whitespaceRule}" ) }])
-    , ("support", [ {productee = InSeq [InNamed ("supportHeader", token "Action")], action = SOME "tokenChars supportHeader"}
-                  , {productee = InSeq [], action = SOME "\"\""} ])
-    , ("tokens", [{ productee = InSeq [token "Token", InNamed ("typ", token "Action"), token "Eq", Var "tokenSpecs", token "Semi"]
+    , ("support", [ {productee = seq [named ("supportHeader", token "Action")], action = SOME "tokenChars supportHeader"}
+                  , {productee = seq [], action = SOME "\"\""} ])
+    , ("tokens", [{ productee = seq [token "Token", named ("typ", token "Action"), token "Eq", nonTerminal "tokenSpecs", token "Semi"]
                   , action = SOME "{typ = tokenChars typ, ctors = tokenSpecs}" }])
-    , ("tokenSpecs", [{productee = InSeq [Var "tokenSpec", Var "optTokenSpecs"], action = SOME "tokenSpec :: optTokenSpecs"}])
-    , ("optTokenSpecs", [ {productee = InSeq [token "Bar", Var "tokenSpecs"], action = SOME "tokenSpecs"}
-                        , {productee = InSeq [], action = SOME "[]"} ])
-    , ("tokenSpec", [{ productee = InSeq [InNamed ("name", token "Id"), InNamed ("alias", nonTerminal "optAlias")]
+    , ("tokenSpecs", [{productee = seq [nonTerminal "tokenSpec", nonTerminal "optTokenSpecs"], action = SOME "tokenSpec :: optTokenSpecs"}])
+    , ("optTokenSpecs", [ {productee = seq [token "Bar", nonTerminal "tokenSpecs"], action = SOME "tokenSpecs"}
+                        , {productee = seq [], action = SOME "[]"} ])
+    , ("tokenSpec", [{ productee = seq [named ("name", token "Id"), named ("alias", nonTerminal "optAlias")]
                      , action = SOME "(tokenChars name, alias)" }])
-    , ("optAlias", [ {productee = InSeq [InNamed ("alias", token "Lit")], action = SOME "SOME (tokenChars alias)"}
-                   , {productee = InSeq [], action = SOME "NONE"} ])
-    , ("rules", [{ productee = InSeq [ InNamed ("starter", nonTerminal "startRule")
-                           , InNamed ("others", nonTerminal "auxRules") ]
+    , ("optAlias", [ {productee = seq [named ("alias", token "Lit")], action = SOME "SOME (tokenChars alias)"}
+                   , {productee = seq [], action = SOME "NONE"} ])
+    , ("rules", [{ productee = seq [ named ("starter", nonTerminal "startRule")
+                                   , named ("others", nonTerminal "auxRules") ]
                  , action = SOME "{startRule = #1 starter, rules = starter :: others}" }])
-    , ("auxRules", [ { productee = InSeq [Var "rule", InNamed ("rules", nonTerminal "auxRules")]
+    , ("auxRules", [ { productee = seq [nonTerminal "rule", named ("rules", nonTerminal "auxRules")]
                      , action = SOME "rule :: rules" }
-                   , { productee = InSeq [], action = SOME "[]" } ])
-    , ("startRule", [{productee = InSeq [token "Start", Var "rule"], action = SOME "rule"}])
-    , ("whitespaceRule", [{productee = InSeq [token "Whitespace", Var "rule"], action = SOME "rule"}])
-    , ("rule", [{ productee = InSeq [InNamed ("name", token "Id"), token "Eq", nonTerminal "clauses", token "Semi"]
+                   , { productee = seq [], action = SOME "[]" } ])
+    , ("startRule", [{productee = seq [token "Start", nonTerminal "rule"], action = SOME "rule"}])
+    , ("whitespaceRule", [{productee = seq [token "Whitespace", nonTerminal "rule"], action = SOME "rule"}])
+    , ("rule", [{ productee = seq [named ("name", token "Id"), token "Eq", nonTerminal "clauses", token "Semi"]
                 , action = SOME "(tokenChars name, clauses)" }])
-    , ("clauses", [{productee = InSeq [nonTerminal "clause", nonTerminal "optClauses"], action = SOME "clause :: optClauses"}])
-    , ("optClauses", [ {productee = InSeq [token "Bar", nonTerminal "clauses"], action = SOME "clauses"}
-                     , {productee = InSeq [], action = SOME "[]"} ])
-    , ("clause", [{ productee = InSeq [nonTerminal "productee", nonTerminal "optAction"]
+    , ("clauses", [{productee = seq [nonTerminal "clause", nonTerminal "optClauses"], action = SOME "clause :: optClauses"}])
+    , ("optClauses", [ {productee = seq [token "Bar", nonTerminal "clauses"], action = SOME "clauses"}
+                     , {productee = seq [], action = SOME "[]"} ])
+    , ("clause", [{ productee = seq [nonTerminal "productee", nonTerminal "optAction"]
                   , action = SOME "{productee = productee, action = optAction}" }])
-    , ("productee", [{productee = nonTerminal "optSeq", action = SOME "InputGrammar.InSeq optSeq"}])
-    , ("seq", [{productee = InSeq [nonTerminal "atom", nonTerminal "optSeq"], action = SOME "atom :: optSeq"}])
+    , ("productee", [{productee = seq [getPos, nonTerminal "optSeq"], action = SOME "{pos, v = InputGrammar.InSeq optSeq}"}])
+    , ("seq", [{productee = seq [nonTerminal "atom", nonTerminal "optSeq"], action = SOME "atom :: optSeq"}])
     , ("optSeq", [ {productee = nonTerminal "seq", action = SOME "seq"}
-                 , {productee = InSeq [], action = SOME "[]"} ])
-    , ("atom", [ {productee = InSeq [ InNamed ("name", token "Id")
-                                    , InNamed ( "res"
-                                              , InAlt [ { productee = InSeq [token "Eq", nonTerminal "atom"]
-                                                        , action = SOME "InputGrammar.InNamed (tokenChars name, atom)"}
-                                                      , {productee = token "QMark", action = SOME "InputGrammar.InOpt (InputGrammar.Var (tokenChars name))"}
-                                                      , {productee = token "Star", action = SOME "InputGrammar.InMany (InputGrammar.Var (tokenChars name))"}
-                                                      , {productee = token "Plus", action = SOME "InputGrammar.InMany1 (InputGrammar.Var (tokenChars name))"}
-                                                      , {productee = InSeq [], action = SOME "InputGrammar.Var (tokenChars name)"} ] ) ]
+                 , {productee = seq [], action = SOME "[]"} ])
+    , ("atom", [ {productee = seq [ getPos, named ("name", token "Id")
+                                  , named ( "res"
+                                          , alt [ { productee = seq [token "Eq", nonTerminal "atom"]
+                                                  , action = SOME "{pos, v = InputGrammar.InNamed (tokenChars name, atom)}"}
+                                                , { productee = token "QMark"
+                                                  , action = SOME "{pos, v = InputGrammar.InOpt {pos, v = InputGrammar.Var (tokenChars name)}}"}
+                                                , { productee = token "Star"
+                                                  , action = SOME "{pos, v = InputGrammar.InMany {pos, v = InputGrammar.Var (tokenChars name)}}"}
+                                                , { productee = token "Plus"
+                                                  , action = SOME "{pos, v = InputGrammar.InMany1 {pos, v = InputGrammar.Var (tokenChars name)}}"}
+                                                , {productee = seq [], action = SOME "{pos, v = InputGrammar.Var (tokenChars name)}"} ] ) ]
                  , action = SOME "res"}
-               , { productee = InSeq [ nonTerminal "core"
-                                     , InNamed ( "res"
-                                               , InAlt [ {productee = token "QMark", action = SOME "InputGrammar.InOpt core"}
-                                                       , {productee = token "Star", action = SOME "InputGrammar.InMany core"}
-                                                       , {productee = token "Plus", action = SOME "InputGrammar.InMany1 core"}
-                                                       , {productee = InSeq [], action = SOME "core"} ] ) ]
+               , { productee = seq [ getPos, nonTerminal "core"
+                                   , named ( "res"
+                                           , alt [ { productee = token "QMark"
+                                                   , action = SOME "{pos, v = InputGrammar.InOpt {pos, v = core}}" }
+                                                 , { productee = token "Star"
+                                                   , action = SOME "{pos, v = InputGrammar.InMany {pos, v = core}}" }
+                                                 , { productee = token "Plus"
+                                                   , action = SOME "{pos, v = InputGrammar.InMany1 {pos, v = core}}" }
+                                                 , { productee = seq []
+                                                   , action = SOME "{pos, v = core}"} ] ) ]
                  , action = SOME "res" } ])
-    , ("core", [ {productee = InSeq [token "LParen", nonTerminal "clauses", token "RParen"], action = SOME "InputGrammar.InAlt clauses"}
-               , {productee = InNamed ("alias", token "Lit"), action = SOME "InputGrammar.Lit (tokenChars alias)"}
-               , {productee = InNamed ("cclass", token "Posix"), action = SOME "InputGrammar.Posix (tokenChars cclass)"}
+    , ("core", [ {productee = seq [token "LParen", nonTerminal "clauses", token "RParen"], action = SOME "InputGrammar.InAlt clauses"}
+               , {productee = named ("alias", token "Lit"), action = SOME "InputGrammar.Lit (tokenChars alias)"}
+               , {productee = named ("cclass", token "Posix"), action = SOME "InputGrammar.Posix (tokenChars cclass)"}
                , {productee = token "Pos", action = SOME "InputGrammar.InPos"} ])
-    , ("optAction", [ {productee = InNamed ("action", token "Action"), action = SOME "SOME (tokenChars action)"}
-                    , {productee = InSeq [], action = SOME "NONE"} ]) ]
+    , ("optAction", [ {productee = named ("action", token "Action"), action = SOME "SOME (tokenChars action)"}
+                    , {productee = seq [], action = SOME "NONE"} ]) ]
 
 val _ = print (Parsers.parserCode { parserName = "NipoParser"
                                   , tokenType = "NipoTokens.t"

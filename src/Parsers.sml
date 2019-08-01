@@ -8,7 +8,7 @@ end
 
 signature PARSERS = sig
     structure Grammar: GRAMMAR
-    structure Analyzed: ANALYZED_GRAMMAR where type productee = Grammar.productee
+    structure Analyzed: ANALYZED_GRAMMAR where type posductee = Grammar.posductee
     structure FirstSet: TOKEN_SET
     structure LookaheadSet: TOKEN_SET where type item = Grammar.Token.t option
 
@@ -100,13 +100,14 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
                 "raise Fail (\"unexpected \" ^ Input.Token.lookaheadToString lookahead ^ \" in " ^ name ^
                 " at \" ^ Input.Pos.toString (Input.pos input))"
 
-            fun producteeCode depth name followSet named =
-                fn Alt alts => altCode depth name followSet named alts
+            fun producteeCode depth name followSet named (productee as {pos = _, v}) =
+                case v
+                of Alt alts => altCode depth name followSet named alts
                  | Seq seq => seqCode depth name followSet named seq
                  | Opt inner => optCode depth name followSet named inner
                  | Many inner => manyCode depth name followSet named inner
                  | Many1 inner => many1Code depth name followSet named inner
-                 | productee as Named _ => #2 (namedCode depth name followSet named productee)
+                 | Named _ => #2 (namedCode depth name followSet named productee)
                  | NonTerminal name => [Expr (name ^ " input")]
                  | Terminal lookahead =>
                     [Expr (case Lookahead.matchCode lookahead
@@ -139,48 +140,50 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
 
             and optCode depth name followSet named inner =
                 let val optName = gensym "optional"
-                in producteeCode depth name followSet named (Alt [ { productee = Named (optName, inner)
-                                                                   , action = if named then SOME optName else NONE }
-                                                                 , { productee = Seq []
-                                                                   , action = if named then SOME "[]" else NONE } ])
+                    val pos = #pos inner
+                in producteeCode depth name followSet named {pos, v = Alt [ { productee = {pos, v = Named (optName, inner)}
+                                                                            , action = if named then SOME optName else NONE }
+                                                                          , { productee = {pos, v = Seq []}
+                                                                            , action = if named then SOME "[]" else NONE } ]}
                 end
 
-            and manyCode depth name followSet named inner =
+            and manyCode depth name followSet named (inner as {pos, v = _}) =
                 let val loopName = gensym "loop"
                     val elemName = gensym "elem"
                     val elemsName = gensym "elems"
                     val depth' = deeper (deeper depth)
-                    do fiSets := StringMap.insert (!fiSets, loopName, firstSet (!fiSets) (Many inner))
+                    do fiSets := StringMap.insert (!fiSets, loopName, firstSet (!fiSets) {pos, v = Many inner})
                 in [Expr ("let fun " ^ loopName ^ " inner =\n" ^
                           indent depth' ^ altExpr depth' name followSet named
-                                                  [ { productee = Seq [ Named (elemName, inner)
-                                                                      , Named (elemsName, NonTerminal loopName) ]
+                                                  [ { productee = {pos, v = Seq [ {pos, v = Named (elemName, inner)}
+                                                                                , { pos
+                                                                                  , v = Named (elemsName, {pos, v = NonTerminal loopName}) } ]}
                                                     , action = if named
                                                                then SOME (elemName ^ " :: " ^ elemsName)
                                                                else NONE }
-                                                  , { productee = Seq []
+                                                  , { productee = {pos, v = Seq []}
                                                     , action = if named then SOME "[]" else NONE } ] ^ "\n" ^
                           indent depth ^ "in " ^ loopName ^ " input\n" ^
                           indent depth ^ "end")]
                 end
 
-            and many1Code depth name followSet named inner =
+            and many1Code depth name followSet named (inner as {pos, v = _}) =
                 let val loopName = gensym "loop"
                     val elemName = gensym "elem"
                     val elemsName = gensym "elems"
                     val depth' = deeper (deeper depth)
-                    do fiSets := StringMap.insert (!fiSets, loopName, firstSet (!fiSets) (Many1 inner))
+                    do fiSets := StringMap.insert (!fiSets, loopName, firstSet (!fiSets) {pos, v = Many1 inner})
                 in [Expr ("let fun " ^ loopName ^ " inner =\n" ^
                           indent depth' ^ "let " ^ String.concatWith ("\n" ^ indent (deeper depth'))
                                                                      (List.map stmtToString
                                                                                (List.rev (producteeCode (deeper depth') name followSet named 
-                                                                                                        (Named (elemName, inner))))) ^ "\n" ^
+                                                                                                        ({pos, v = Named (elemName, inner)})))) ^ "\n" ^
                           indent depth' ^ "in  " ^ altExpr (deeper depth') name followSet named
-                                                           [ { productee = Named (elemsName, NonTerminal loopName)
+                                                           [ { productee = {pos, v = Named (elemsName, {pos, v = NonTerminal loopName})}
                                                              , action = if named
                                                                         then SOME (elemName ^ " :: " ^ elemsName)
                                                                         else NONE }
-                                                           , { productee = Seq []
+                                                           , { productee = {pos, v = Seq []}
                                                              , action = if named
                                                                         then SOME ("[" ^ elemName ^ "]")
                                                                         else NONE } ] ^ "\n" ^
@@ -189,13 +192,14 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
                           indent depth ^ "end")]
                 end
 
-            and namedCode depth ntName followSet named =
-                fn Named (name, productee) =>
+            and namedCode depth ntName followSet named (productee as {v, pos = _}) =
+                case v
+                of Named (name, productee) =>
                     ( SOME name
                     , case namedCode depth ntName followSet true productee
                       of (SOME name', stmts) => Val (name, name') :: stmts
                        | (NONE, Expr expr :: stmts) => Val (name, expr) :: stmts )
-                 | productee => (NONE, producteeCode depth ntName followSet named productee)
+                 | _ => (NONE, producteeCode depth ntName followSet named productee)
 
             and clauseCode depth name followSet named {productee, action} =
                 let val stmts = List.map stmtToString (List.rev (producteeCode depth name followSet named productee))
@@ -262,7 +266,7 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
         end
 end
 
-functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.productee = ParserGrammar.productee) = struct
+functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Grammar.productee = ParserGrammar.productee) = struct
     datatype in_productee = datatype InputGrammar.productee
     datatype productee = datatype ParserGrammar.productee
     structure Analysis = Args.Analysis
@@ -288,27 +292,29 @@ functor ProperParsers(Args: PARSERS_ARGS where type Analysis.Analyzed.productee 
 
     fun ntParserName resName = "parse" ^ String.capitalize resName
 
-    fun nameToAtom terminals name =
+    fun nameToAtom terminals pos name =
         case StringMap.find (terminals, name)
-        of SOME canonName => Named (tParsedName canonName, Terminal (SOME canonName))
-         | NONE => Named (name, NonTerminal (ntParserName name))
+        of SOME canonName => Named (tParsedName canonName, {pos, v = Terminal (SOME canonName)})
+         | NONE => Named (name, {pos, v = NonTerminal (ntParserName name)})
 
     fun convertAtoms terminals rules =
-        let val rec convertProductee =
-                fn InAlt alts => Alt (List.map convertClause alts)
-                 | InSeq seq => Seq (List.map convertProductee seq)
-                 | InOpt inner => Opt (convertProductee inner)
-                 | InMany inner => Many (convertProductee inner)
-                 | InMany1 inner => Many1 (convertProductee inner)
-                 | InNamed (name, productee) => Named (name, convertProductee productee)
-                 | Var name =>
-                    if Char.isUpper (String.sub (name, 0))
-                    then nameToAtom terminals name
-                    else Named (name, NonTerminal (ntParserName name))
-                 | Lit name => nameToAtom terminals name
-                 | InPos => Pos
+        let fun convertProductee {pos, v} =
+                { pos
+                , v = case v
+                      of InAlt alts => Alt (List.map convertClause alts)
+                       | InSeq seq => Seq (List.map convertProductee seq)
+                       | InOpt inner => Opt (convertProductee inner)
+                       | InMany inner => Many (convertProductee inner)
+                       | InMany1 inner => Many1 (convertProductee inner)
+                       | InNamed (name, productee) => Named (name, convertProductee productee)
+                       | Var name =>
+                          if Char.isUpper (String.sub (name, 0))
+                          then nameToAtom terminals pos name
+                          else Named (name, {pos, v = NonTerminal (ntParserName name)})
+                       | Lit name => nameToAtom terminals pos name
+                       | InPos => Pos }
 
-            and convertClause = fn {productee, action} =>
+            and convertClause {productee, action} =
                 {productee = convertProductee productee, action}
 
             fun convertNt (name, clauses) =

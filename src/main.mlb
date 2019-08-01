@@ -5,13 +5,13 @@ ann "warnUnused true" in
     ann "allowSuccessorML true" in
         Util/String.sml
         Util/List.sml
+        ../lib/Input/Pos.sml
         Lexeme.sml
         Grammar.sml
         TokenSet.sml
         Analysis.sml
         Parsers.sml
         Lexers.sml
-        ../lib/Input/Pos.sml
         ../lib/Input/input.sml
         ../lib/Token.sml
         ../lib/Lexer.sml

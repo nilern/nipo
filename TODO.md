@@ -5,7 +5,7 @@
 - [x] Nested alternations (for e.g. manual left-factoring)
 - [x] ?*+ operators
 - [x] `pos` pseudo atom to get positions in proper parsers
-    * [ ] Use in `SelfParser`
+    * [x] Use in `SelfParser`
 - [x] Comments
 - [x] Support code for lexers, just like proper parsers have
 - [ ] `[^]` syntax for lexers

@@ -3,16 +3,18 @@ signature GRAMMAR = sig
 
     datatype productee
         = Alt of clause list
-        | Seq of productee list
-        | Opt of productee
-        | Many of productee
-        | Many1 of productee
-        | Named of string * productee
+        | Seq of posductee list
+        | Opt of posductee
+        | Many of posductee
+        | Many1 of posductee
+        | Named of string * posductee
         | NonTerminal of string
         | Terminal of Token.t option
         | Pos
 
-    withtype clause = {productee: productee, action: string option}
+    withtype posductee = {pos: Pos.t, v: productee}
+
+    and clause = {productee: {pos: Pos.t, v: productee}, action: string option}
 
     type grammar = (string * clause list) list
 end
@@ -24,16 +26,18 @@ functor Grammar(Token: LEXEME) :> GRAMMAR
 
     datatype productee
         = Alt of clause list
-        | Seq of productee list
-        | Opt of productee
-        | Many of productee
-        | Many1 of productee
-        | Named of string * productee
+        | Seq of posductee list
+        | Opt of posductee
+        | Many of posductee
+        | Many1 of posductee
+        | Named of string * posductee
         | NonTerminal of string
         | Terminal of Token.t option
         | Pos
 
-    withtype clause = {productee: productee, action: string option}
+    withtype posductee = {pos: Pos.t, v: productee}
+
+    and clause = {productee: {pos: Pos.t, v: productee}, action: string option}
 
     type grammar = (string * clause list) list
 end
@@ -71,18 +75,20 @@ end
 structure InputGrammar = struct
     datatype productee
         = InAlt of clause list
-        | InSeq of productee list
-        | InOpt of productee
-        | InMany of productee
-        | InMany1 of productee
-        | Complement of productee
-        | InNamed of string * productee
+        | InSeq of posductee list
+        | InOpt of posductee
+        | InMany of posductee
+        | InMany1 of posductee
+        | Complement of posductee
+        | InNamed of string * posductee
         | Var of string
         | Lit of string
         | Posix of string
         | InPos
 
-    withtype clause = {productee: productee, action: string option}
+    withtype posductee = {pos: Pos.t, v: productee}
+
+    and clause = {productee: {pos: Pos.t, v: productee}, action: string option}
 
     type grammar = (string * clause list) list
 
@@ -96,14 +102,14 @@ structure InputGrammar = struct
 end
 
 signature ANALYZED_GRAMMAR = sig
-    type productee
-    type 'laset branch = {lookaheads: 'laset, productees: {productee: productee, action: string option} list}
+    type posductee
+    type 'laset branch = {lookaheads: 'laset, productees: {productee: posductee, action: string option} list}
     type 'laset grammar = (string * 'laset branch list) list
 end
 
-functor AnalyzedGrammar(Grammar: GRAMMAR) :> ANALYZED_GRAMMAR where type productee = Grammar.productee = struct
-    type productee = Grammar.productee
-    type 'laset branch = {lookaheads: 'laset, productees: {productee: productee, action: string option} list}
+functor AnalyzedGrammar(Grammar: GRAMMAR) :> ANALYZED_GRAMMAR where type posductee = Grammar.posductee = struct
+    type posductee = Grammar.posductee
+    type 'laset branch = {lookaheads: 'laset, productees: {productee: posductee, action: string option} list}
     type 'laset grammar = (string * 'laset branch list) list
 end
 

@@ -23,29 +23,31 @@ end) :> LEXERS
     structure Parsers = Args.Parsers
 
     fun convertAtoms grammar =
-        let val rec convertProductee =
-                fn InAlt alts => Alt (List.map convertClause alts)
-                 | InSeq seq => Seq (List.map convertProductee seq)
-                 | InOpt inner => Opt (convertProductee inner)
-                 | InMany inner => Many (convertProductee inner)
-                 | InMany1 inner => Many1 (convertProductee inner)
-                 | Var name => NonTerminal name
-                 | Lit name =>
-                    let val c = case Char.fromString name
-                                of SOME c => c
-                                 | NONE => raise Fail ("Bad char literal '" ^ name ^ "'") (* HACK *)
-                    in Terminal (SOME (CharClass.Singleton c))
-                    end
-                 | Posix "alpha" => Terminal (SOME (CharClass.Posix CharClass.Alpha))
-                 | Posix "digit" => Terminal (SOME (CharClass.Posix CharClass.Digit))
-                 | Posix "space" => Terminal (SOME (CharClass.Posix CharClass.Space))
-                 | Complement atom =>
-                    (case convertProductee atom
-                     of Terminal (SOME cc) => Terminal (SOME (CharClass.Not cc)))
-                 | InNamed (name, atom) => Named (name, convertProductee atom)
-                 | InPos => Pos
+        let fun convertProductee {pos, v} =
+                { pos
+                , v = case v
+                      of InAlt alts => Alt (List.map convertClause alts)
+                       | InSeq seq => Seq (List.map convertProductee seq)
+                       | InOpt inner => Opt (convertProductee inner)
+                       | InMany inner => Many (convertProductee inner)
+                       | InMany1 inner => Many1 (convertProductee inner)
+                       | Var name => NonTerminal name
+                       | Lit name =>
+                          let val c = case Char.fromString name
+                                      of SOME c => c
+                                       | NONE => raise Fail ("Bad char literal '" ^ name ^ "'") (* HACK *)
+                          in Terminal (SOME (CharClass.Singleton c))
+                          end
+                       | Posix "alpha" => Terminal (SOME (CharClass.Posix CharClass.Alpha))
+                       | Posix "digit" => Terminal (SOME (CharClass.Posix CharClass.Digit))
+                       | Posix "space" => Terminal (SOME (CharClass.Posix CharClass.Space))
+                       | Complement atom =>
+                          (case convertProductee atom
+                           of {pos, v = Terminal (SOME cc)} => Terminal (SOME (CharClass.Not cc)))
+                       | InNamed (name, atom) => Named (name, convertProductee atom)
+                       | InPos => Pos }
             
-            and convertClause = fn {productee, action} =>
+            and convertClause {productee, action} =
                 {productee = convertProductee productee, action}
 
             fun convertNt (name, clauses) =

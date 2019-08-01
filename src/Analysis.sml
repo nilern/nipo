@@ -2,11 +2,11 @@ structure StringMap = BinaryMapFn(type ord_key = string val compare = String.com
 
 signature GRAMMAR_ANALYSIS = sig
     structure Grammar: GRAMMAR
-    structure Analyzed: ANALYZED_GRAMMAR where type productee = Grammar.productee
+    structure Analyzed: ANALYZED_GRAMMAR where type posductee = Grammar.posductee
     structure FirstSet: TOKEN_SET
     structure LookaheadSet: TOKEN_SET
 
-    val firstSet: FirstSet.set StringMap.map -> Grammar.productee -> FirstSet.set
+    val firstSet: FirstSet.set StringMap.map -> Grammar.posductee -> FirstSet.set
     val predictionSet: FirstSet.set -> LookaheadSet.set -> LookaheadSet.set
     val analyze: Grammar.grammar -> string -> string option -> string option
               -> LookaheadSet.set Analyzed.branch list StringMap.map
@@ -15,7 +15,7 @@ end
 
 functor GrammarAnalysis(Args: sig
     structure Grammar: GRAMMAR
-    structure Analyzed: ANALYZED_GRAMMAR where type productee = Grammar.productee
+    structure Analyzed: ANALYZED_GRAMMAR where type posductee = Grammar.posductee
     structure Lookahead: LEXEME where type t = Grammar.Token.t option
     structure NullableToken: NULLABLE_LEXEME where type non_nullable = Lookahead.t
     structure FirstSet: TOKEN_SET where type item = NullableToken.t
@@ -52,8 +52,9 @@ end) :> GRAMMAR_ANALYSIS
  
     exception Changed
 
-    fun firstSet fiSets =
-        fn Alt alts => branchFirstSet fiSets alts
+    fun firstSet fiSets {pos = _, v} =
+        case v
+        of Alt alts => branchFirstSet fiSets alts
          | Seq seq =>
             let val rec seqFirsts =
                     fn p :: ps =>
@@ -85,7 +86,7 @@ end) :> GRAMMAR_ANALYSIS
                    FirstSet.empty
                    (List.map (clauseFirstSet fiSets) productees)
 
-    fun firstSets (grammar: unit Analyzed.branch list StringMap.map): first_set Analyzed.branch list StringMap.map * first_set StringMap.map =
+    fun firstSets grammar =
         let fun branchIteration sets {lookaheads = _, productees} =
                 {lookaheads = branchFirstSet sets productees, productees}
 
@@ -121,8 +122,7 @@ end) :> GRAMMAR_ANALYSIS
         in iterate (StringMap.mapi (fn _ => FirstSet.empty) grammar)
         end
 
-    fun followSets (grammar: first_set Analyzed.branch list StringMap.map) (fiSets: first_set StringMap.map) isStart
-            : follow_set StringMap.map =
+    fun followSets grammar fiSets isStart =
         let fun changed sets sets' =
                 ( StringMap.appi (fn (name, set') =>
                                     let val set = StringMap.lookup (sets, name)
@@ -134,8 +134,8 @@ end) :> GRAMMAR_ANALYSIS
                 ; false )
                 handle Changed => true
 
-            fun producteeIteration followSet (productee, sets') =
-                case productee
+            fun producteeIteration followSet (productee as {pos = _, v}, sets') =
+                case v
                 of Alt alts =>
                     List.foldl (clauseIteration followSet) sets' alts
                  | Seq seq =>
@@ -191,15 +191,21 @@ end) :> GRAMMAR_ANALYSIS
                                                               { lookaheads = ()
                                                               , productees = [productee] })
                                                             productees ))
-                           (case internalStartName
-                            of SOME internalStartName =>
-                                StringMap.insert ( StringMap.empty, internalStartName
-                                                 , [{ lookaheads = ()
-                                                    , productees = [{ productee = Seq [ Named (startRule, NonTerminal startRule)
-                                                                                      , Terminal NONE ]
-                                                                    , action = SOME startRule } ]}] )
-                             | _ => StringMap.empty)
-                           grammar
+                           StringMap.empty grammar
+            val startRulePos = #pos (#productee (hd (#productees (hd (StringMap.lookup (grammar, startRule))))))
+            val grammar =
+                case internalStartName
+                of SOME internalStartName =>
+                    StringMap.insert ( grammar, internalStartName
+                                     , [{ lookaheads = ()
+                                        , productees = [{ productee = { pos = startRulePos
+                                                                      , v = Seq [ { pos = startRulePos
+                                                                                  , v = Named (startRule, { pos = startRulePos
+                                                                                                          , v = NonTerminal startRule }) }
+                                                                                , { pos = startRulePos
+                                                                                  , v = Terminal NONE } ] }
+                                                        , action = SOME startRule } ]}] )
+                 | _ => grammar
             val (grammar, fiSets) = firstSets grammar
             val isStart = case internalStartName
                           of SOME startRule => (fn name => name = startRule)

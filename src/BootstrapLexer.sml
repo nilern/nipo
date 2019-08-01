@@ -24,8 +24,14 @@ structure Lexers = NipoLexers(struct
 end)
 datatype productee = datatype InputGrammar.productee
 
-val charLit = Lit o String.str
-val tokens = InSeq o List.map charLit o String.explode
+val pos = Pos.default "BootstrapLexer.sml"
+fun nonTerminal name = {pos, v = Var name}
+fun token cs = {pos, v = Lit cs}
+fun complement inner = {pos, v = Complement inner}
+fun alt ps = {pos, v = InAlt ps}
+fun seq ps = {pos, v = InSeq ps}
+fun charLit c = {pos, v = Lit (String.str c)}
+fun tokens cs = {pos, v = InSeq (List.map charLit (String.explode cs))}
 fun charsBetween (first, last) =
     let val firstCode = Char.ord first
         val lastCode = Char.ord last
@@ -39,38 +45,38 @@ fun charsBetween (first, last) =
     end
 
 val grammar =
-    [ ("token", [ {productee = Var "id", action = SOME "NipoTokens.fromId"}
-                , { productee = Var "escapedId"
+    [ ("token", [ {productee = nonTerminal "id", action = SOME "NipoTokens.fromId"}
+                , { productee = nonTerminal "escapedId"
                   , action = SOME "fn (s, cs, e) => NipoTokens.Lit (s, String.substring (cs, 1, String.size cs - 2), e)" }
                 , {productee = tokens "->", action = SOME "NipoTokens.Arrow o #1"}
-                , {productee = Lit "=", action = SOME "NipoTokens.Eq o #1"}
-                , {productee = Lit "|", action = SOME "NipoTokens.Bar o #1"}
-                , {productee = Lit "?", action = SOME "NipoTokens.QMark o #1"}
-                , {productee = Lit "*", action = SOME "NipoTokens.Star o #1"}
-                , {productee = Lit "+", action = SOME "NipoTokens.Plus o #1"}
-                , { productee = InSeq [Lit "{", Var "action", Lit "}"]
+                , {productee = token "=", action = SOME "NipoTokens.Eq o #1"}
+                , {productee = token "|", action = SOME "NipoTokens.Bar o #1"}
+                , {productee = token "?", action = SOME "NipoTokens.QMark o #1"}
+                , {productee = token "*", action = SOME "NipoTokens.Star o #1"}
+                , {productee = token "+", action = SOME "NipoTokens.Plus o #1"}
+                , { productee = seq [token "{", nonTerminal "action", token "}"]
                   , action = SOME "fn (s, cs, e) => NipoTokens.Action (s, String.substring (cs, 1, String.size cs - 2), e)" }
-                , { productee = InSeq [Lit "[", Lit "[", Lit ":", Var "posix", Lit ":", Lit "]", Lit "]"],
+                , { productee = seq [token "[", token "[", token ":", nonTerminal "posix", token ":", token "]", token "]"],
                     action = SOME "fn (s, cs, e) => NipoTokens.Posix (s, String.substring (cs, 3, String.size cs - 6), e)" }
-                , {productee = Lit "(", action = SOME "NipoTokens.LParen o #1"}
-                , {productee = Lit ")", action = SOME "NipoTokens.RParen o #1"}
-                , {productee = Lit ";", action = SOME "NipoTokens.Semi o #1"} ])
-    , ("id", [{productee = InSeq [Var "alpha", Var "idTail"], action = NONE}])
-    , ("idTail", [ {productee = InSeq [Var "alpha", Var "idTail"], action = NONE}
-                 , {productee = InSeq [], action = NONE} ])
-    , ("escapedId", [{productee = InSeq [Lit "'", Var "freeIdContents", Lit "'"], action = NONE}])
-    , ("freeIdContents", [ {productee = InSeq [Complement (Lit "'"), Var "freeIdContents"], action = NONE}
-                         , {productee = InSeq [], action = NONE} ])
-    , ("alpha", [ {productee = Posix "alpha", action = NONE} ])
-    , ("posix", [ {productee = Var "id", action = NONE} ])
-    , ("action", [ {productee = InSeq [Complement (Lit "}"), Var "action"], action = NONE}
-                 , {productee = InSeq [], action = NONE} ])
-    , ("ws", [ {productee = InSeq [ InAlt [ {productee = Var "wsChar", action = NONE}
-                                          , {productee = Var "comment", action = NONE} ]
-                                  , Var "ws"], action = NONE}
-             , {productee = InSeq [], action = NONE} ])
-    , ("wsChar", [{productee = Posix "space", action = NONE}])
-    , ("comment", [{productee = InSeq [Lit "#", InMany (Complement (Lit "\\n"))], action = NONE}]) ]
+                , {productee = token "(", action = SOME "NipoTokens.LParen o #1"}
+                , {productee = token ")", action = SOME "NipoTokens.RParen o #1"}
+                , {productee = token ";", action = SOME "NipoTokens.Semi o #1"} ])
+    , ("id", [{productee = seq [nonTerminal "alpha", nonTerminal "idTail"], action = NONE}])
+    , ("idTail", [ {productee = seq [nonTerminal "alpha", nonTerminal "idTail"], action = NONE}
+                 , {productee = seq [], action = NONE} ])
+    , ("escapedId", [{productee = seq [token "'", nonTerminal "freeIdContents", token "'"], action = NONE}])
+    , ("freeIdContents", [ {productee = seq [complement (token "'"), nonTerminal "freeIdContents"], action = NONE}
+                         , {productee = seq [], action = NONE} ])
+    , ("alpha", [ {productee = {pos, v = Posix "alpha"}, action = NONE} ])
+    , ("posix", [ {productee = nonTerminal "id", action = NONE} ])
+    , ("action", [ {productee = seq [complement (token "}"), nonTerminal "action"], action = NONE}
+                 , {productee = seq [], action = NONE} ])
+    , ("ws", [ {productee = seq [ alt [ {productee = nonTerminal "wsChar", action = NONE}
+                                        , {productee = nonTerminal "comment", action = NONE} ]
+                                , nonTerminal "ws"], action = NONE}
+             , {productee = seq [], action = NONE} ])
+    , ("wsChar", [{productee = {pos, v = Posix "space"}, action = NONE}])
+    , ("comment", [{productee = seq [token "#", {pos, v = InMany (complement (token "\\n"))}], action = NONE}]) ]
 
 val _ = print (Lexers.lexerCode { lexerName = "NipoLexer"
                                 , tokenType = "NipoTokens.token"
