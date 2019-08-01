@@ -53,6 +53,8 @@ structure ProperParsers = ProperParsers(struct
     structure Analysis = ParserAnalysis
 end)
 
+fun printErrLine s = TextIO.output (TextIO.stdErr, s ^ "\n")
+
 val parserCode =
     fn InputGrammar.Lexer lexer => Lexers.lexerCode lexer
      | InputGrammar.Parser parser => ProperParsers.parserCode parser
@@ -72,11 +74,11 @@ val main =
         in ( print (parserCode (Parser.start__parser tokens))
            ; exit success )
            handle
-               | Lexers.Conflicts conflicts =>
-                   ( printErrLine (Lexers.formatConflicts conflicts)
+               | ParserAnalysis.Conflicts conflicts =>
+                   ( printErrLine (ParserAnalysis.formatConflicts conflicts)
                    ; exit failure )
-               | ProperParsers.Conflicts conflicts =>
-                   ( printErrLine (ProperParsers.formatConflicts conflicts)
+               | LexerAnalysis.Conflicts conflicts =>
+                   ( printErrLine (LexerAnalysis.formatConflicts conflicts)
                    ; exit failure )
         end
 

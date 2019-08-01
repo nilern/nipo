@@ -78,7 +78,8 @@ val grammar =
                                 , nonTerminal "ws"], action = NONE}
              , {productee = seq [], action = NONE} ])
     , ("wsChar", [{productee = {pos, v = Posix "space"}, action = NONE}])
-    , ("comment", [{productee = seq [token "#", {pos, v = InMany (complement (token "\\n"))}], action = NONE}]) ]
+    , ("comment", [{ productee = seq [token "#", {pos, v = InMany (complement (token "\\n"))}, token "\\n"]
+                   , action = NONE }]) ]
 
 open OS.Process
 val _ =
