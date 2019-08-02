@@ -142,8 +142,6 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
                 in #1 (List.foldr step ([], followSet) seq)
                 end
 
-            (* TODO: Don't produce option/list when the value is unused: *)
-
             and optCode depth name followSet named inner =
                 let val optName = gensym "optional"
                     val pos = #pos inner
@@ -259,11 +257,15 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
             fun ntCode depth name followSet named branches =
                 indent depth ^ "and " ^ name ^ " input =\n" ^
                 indent (deeper depth) ^ branchesCode (deeper depth) name followSet named branches
-        in  StringMap.foldli (fn (name, branches, acc) =>
-                                  let val followSet = StringMap.lookup (foSets, name)
-                                  in acc ^ "\n\n" ^ ntCode (deeper 0) name followSet false branches
-                                  end)
-                             "" grammar
+            val code =
+                StringMap.foldli (fn (name, branches, acc) =>
+                                      let val followSet = StringMap.lookup (foSets, name)
+                                      in acc ^ "\n\n" ^ ntCode (deeper 0) name followSet false branches
+                                      end)
+                                 "" grammar
+        in case !conflicts
+           of [] => code
+            | conflicts => raise Analysis.Conflicts conflicts
         end
 
     (* TODO: Separate FIRST/FIRST, FIRST/FOLLOW and FOLLOW/FOLLOW conflicts: *)
@@ -283,10 +285,7 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
 
     fun recognizerRulesCode grammar startRule whitespaceRule =
         let val (grammar, fiSets, foSets) = Analysis.analyze grammar startRule whitespaceRule NONE
-            val code = rulesCode fiSets foSets grammar
-        in case !conflicts
-           of [] => code
-            | conflicts => raise Analysis.Conflicts conflicts
+        in rulesCode fiSets foSets grammar
         end
 end
 
