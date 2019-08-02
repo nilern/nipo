@@ -62,7 +62,9 @@ end) :> GRAMMAR_ANALYSIS
                        : conflict ) =
         "Conflict within " ^ name ^ " between\n" ^
         "    " ^ LookaheadSet.toString lookaheads ^ " in " ^ Pos.toString (#pos (#productee productee)) ^ "\n" ^
-        "and " ^ LookaheadSet.toString lookaheads' ^ " in " ^ Pos.toString (#pos (#productee productee'))
+        "and " ^ LookaheadSet.toString lookaheads' ^ " in " ^ Pos.toString (#pos (#productee productee')) ^ "\n" ^
+        "; their intersection " ^ LookaheadSet.toString (LookaheadSet.intersection (lookaheads, lookaheads')) ^
+        " is not empty."
 
     fun formatConflicts conflicts =
         String.concatWith "\n\n" (List.map formatConflict conflicts)
