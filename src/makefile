@@ -1,7 +1,8 @@
 .PHONY: all
 all: nipo
 
-nipo: main.mlb Lexeme.sml Grammar.sml TokenSet.sml Analysis.sml Parsers.sml Lexers.sml NipoTokens.sml SelfLexer.sml SelfParser.sml main.sml
+nipo: main.mlb Lexeme.sml Grammar.sml TokenSet.sml Analysis.sml PLLTransform.sml Parsers.sml Lexers.sml \
+      NipoTokens.sml SelfLexer.sml SelfParser.sml main.sml
 	mlton -const 'Exn.keepHistory true' -output nipo main.mlb
 
 SelfParser.sml: BootstrapParser

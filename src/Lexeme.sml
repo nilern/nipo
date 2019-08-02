@@ -13,6 +13,7 @@ end
 signature LEXEME = sig
     type t
 
+    val eq: t * t -> bool
     val compare: t * t -> order
     val overlap: t * t -> bool
     val patternCode: t -> BranchCond.t
@@ -40,6 +41,8 @@ structure Token :> LEXEME where type t = string = struct
     type t = string
 
     fun toString token = token
+
+    val eq = op=
 
     val compare = String.compare
 
@@ -95,6 +98,8 @@ structure CharClass = struct
          | Posix Space => "[:space:]"
          | Not cc => "[^" ^ toString cc ^ "]"
 
+    val eq = op=
+
     val rec compare = 
         fn (Singleton c, Singleton c') => Char.compare (c, c')
          | (Singleton _, Posix _) => LESS
@@ -148,6 +153,12 @@ functor Lookahead(Token: LEXEME) = struct
 
     type t = Token.t option
 
+    val eq =
+        fn (SOME t, SOME t') => Token.eq (t, t')
+         | (SOME _, NONE) => false
+         | (NONE, SOME _) => false
+         | (NONE, NONE) => true
+
     val compare =
         fn (SOME token, SOME token') => Token.compare (token, token')
          | (SOME _, NONE) => GREATER
@@ -188,6 +199,12 @@ functor NullableToken(Lookahead: LEXEME) = struct
     type non_nullable = Lookahead.t
     datatype t = Token of non_nullable
                | Epsilon
+
+    val eq =
+        fn (Token t, Token t') => Lookahead.eq(t, t')
+         | (Token _, Epsilon) => false
+         | (Epsilon, Token _) => false
+         | (Epsilon, Epsilon) => true
 
     val compare =
         fn (Token token, Token token') => Lookahead.compare (token, token')

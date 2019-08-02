@@ -10,6 +10,7 @@ ann "warnUnused true" in
         Grammar.sml
         TokenSet.sml
         Analysis.sml
+        PLLTransform.sml
         Parsers.sml
         Lexers.sml
         ../lib/Input/input.sml
