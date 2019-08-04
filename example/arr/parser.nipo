@@ -1,6 +1,6 @@
 parser ArrParser where
 
-token {ArrTokens.t}
+token {%ArrTokens.t%}
     = Eq '='
     | LBracket '['
     | RBracket ']'

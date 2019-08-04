@@ -1,13 +1,13 @@
-lexer ArithLexer -> {ArithToken.t} where
+lexer ArithLexer -> {%ArithToken.t%} where
 
 rules
 
 start tok
-    = '+' { ArithToken.Plus o #1 }
-    | '*' { ArithToken.Times o #1 }
-    | '(' { ArithToken.LParen o #1 }
-    | ')' { ArithToken.RParen o #1 }
-    | [[:digit:]]+ { fn (s, cs, e) => ArithToken.Num (s, valOf (Int.fromString cs), e) }
+    = '+' {% ArithToken.Plus o #1 %}
+    | '*' {% ArithToken.Times o #1 %}
+    | '(' {% ArithToken.LParen o #1 %}
+    | ')' {% ArithToken.RParen o #1 %}
+    | [[:digit:]]+ {% fn (s, cs, e) => ArithToken.Num (s, valOf (Int.fromString cs), e) %}
     ;
 
 whitespace ws = [[:space:]]*;

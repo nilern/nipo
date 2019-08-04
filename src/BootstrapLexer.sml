@@ -56,8 +56,8 @@ val grammar =
                 , {productee = token "?", action = SOME "NipoTokens.QMark o #1"}
                 , {productee = token "*", action = SOME "NipoTokens.Star o #1"}
                 , {productee = token "+", action = SOME "NipoTokens.Plus o #1"}
-                , { productee = seq [token "{", nonTerminal "action", token "}"]
-                  , action = SOME "fn (s, cs, e) => NipoTokens.Action (s, String.substring (cs, 1, String.size cs - 2), e)" }
+                , { productee = seq [tokens "{%", nonTerminal "action", tokens "%}"]
+                  , action = SOME "fn (s, cs, e) => NipoTokens.Action (s, String.substring (cs, 2, String.size cs - 4), e)" }
                 , { productee = seq [token "[", token "[", token ":", nonTerminal "posix", token ":", token "]", token "]"],
                     action = SOME "fn (s, cs, e) => NipoTokens.Posix (s, String.substring (cs, 3, String.size cs - 6), e)" }
                 , {productee = token "(", action = SOME "NipoTokens.LParen o #1"}
@@ -71,7 +71,7 @@ val grammar =
                          , {productee = seq [], action = NONE} ])
     , ("alpha", [ {productee = {pos, v = Posix "alpha"}, action = NONE} ])
     , ("posix", [ {productee = nonTerminal "id", action = NONE} ])
-    , ("action", [ {productee = seq [complement (token "}"), nonTerminal "action"], action = NONE}
+    , ("action", [ {productee = seq [complement (token "%"), nonTerminal "action"], action = NONE}
                  , {productee = seq [], action = NONE} ])
     , ("ws", [ {productee = seq [ alt [ {productee = nonTerminal "wsChar", action = NONE}
                                       , {productee = nonTerminal "comment", action = NONE} ]

@@ -11,7 +11,7 @@
 - [x] Conflict detection
 - [ ] `[^]` syntax for lexers
 - [ ] "foo" = 'f' 'o' 'o'
-- [ ] Enable braces inside actions
+- [x] Enable braces inside actions
 - [ ] Error on missing lexer start rule actions
 - [ ] "Unexpected Foo, was expecting one of {Bar, Baz}"
 - [ ] Move foo -> parseFoo transformation after conflict detection

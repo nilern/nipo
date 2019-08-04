@@ -1,8 +1,8 @@
 parser ArithParser where
 
-{ open ArithToken }
+{% open ArithToken %}
 
-token {ArithToken.t}
+token {%ArithToken.t%}
     = Plus '+'
     | Times '*'
     | LParen '('
@@ -12,16 +12,16 @@ token {ArithToken.t}
 
 rules
 
-start expr = term terms=plusTerm* { foldl op+ term terms };
+start expr = term terms=plusTerm* {% foldl op+ term terms %};
 
-plusTerm = '+' term { term };
+plusTerm = '+' term {% term %};
 
-term = factor factors=timesFactor* { foldl op* factor factors };
+term = factor factors=timesFactor* {% foldl op* factor factors %};
 
-timesFactor = '*' factor { factor };
+timesFactor = '*' factor {% factor %};
 
 factor
-    = '(' expr ')' { expr }
-    | Num          { valOf (tokenInt tokNum) }
+    = '(' expr ')' {% expr %}
+    | Num          {% valOf (tokenInt tokNum) %}
     ;
 
