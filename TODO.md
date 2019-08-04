@@ -9,9 +9,10 @@
 - [x] Comments
 - [x] Support code for lexers, just like proper parsers have
 - [x] Conflict detection
+- [x] Enable braces inside actions
+- [x] Vim syntax highlighting
 - [ ] `[^]` syntax for lexers
 - [ ] "foo" = 'f' 'o' 'o'
-- [x] Enable braces inside actions
 - [ ] Error on missing lexer start rule actions
 - [ ] "Unexpected Foo, was expecting one of {Bar, Baz}"
 - [ ] Move foo -> parseFoo transformation after conflict detection
