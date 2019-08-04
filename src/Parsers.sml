@@ -146,9 +146,9 @@ functor NipoParsers(Args: PARSERS_ARGS) :> PARSERS
                 let val optName = gensym "optional"
                     val pos = #pos inner
                 in producteeCode depth name followSet named {pos, v = Alt [ { productee = {pos, v = Named (optName, inner)}
-                                                                            , action = if named then SOME optName else NONE }
+                                                                            , action = if named then SOME ("SOME " ^ optName) else NONE }
                                                                           , { productee = {pos, v = Seq []}
-                                                                            , action = if named then SOME "[]" else NONE } ]}
+                                                                            , action = if named then SOME "NONE" else NONE } ]}
                 end
 
             and manyCode depth name followSet named (inner as {pos, v = _}) =
