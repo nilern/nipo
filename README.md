@@ -1,4 +1,4 @@
-# NIlern's Parser generatOr
+# PaLleRo
 
 ## Goals
 
